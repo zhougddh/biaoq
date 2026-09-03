@@ -1,0 +1,3333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>齐云山内部使用</title>
+<script src="lib/JsBarcode.all.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif;background:#f0f2f5;color:#333;min-height:100vh;}
+
+/* ===== Header ===== */
+.header{background:linear-gradient(135deg,#2d8c3c,#1a6b28);color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.header h1{font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.header-info{font-size:13px;opacity:.85;display:flex;gap:16px;}
+
+/* ===== Toolbar ===== */
+.toolbar{background:#fff;padding:8px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid #e8e8e8;position:sticky;top:56px;z-index:90;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.search-box{flex:1;min-width:140px;max-width:260px;position:relative;}
+.search-box input{width:100%;padding:6px 12px 6px 32px;border:1.5px solid #d9d9d9;border-radius:6px;font-size:13px;outline:none;}
+.search-box input:focus{border-color:#2d8c3c;}
+.search-box .si{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#999;font-size:14px;}
+.filter-chips{display:flex;gap:4px;flex-wrap:wrap;}
+.chip{padding:3px 10px;border-radius:16px;font-size:12px;cursor:pointer;border:1.5px solid #d9d9d9;background:#fff;color:#666;transition:all .15s;white-space:nowrap;}
+.chip:hover{border-color:#2d8c3c;color:#2d8c3c;}
+.chip.active{background:#2d8c3c;color:#fff;border-color:#2d8c3c;}
+.chip .cnt{font-size:10px;opacity:.7;}
+.sort-select{padding:4px 8px;border:1.5px solid #d9d9d9;border-radius:6px;font-size:12px;outline:none;cursor:pointer;background:#fff;}
+.date-edit{display:flex;align-items:center;gap:4px;font-size:12px;color:#666;}
+.date-edit input{padding:3px 6px;border:1.5px solid #d9d9d9;border-radius:6px;font-size:12px;width:165px;outline:none;box-sizing:border-box;}
+.date-edit input:focus{border-color:#2d8c3c;}
+.date-btn{padding:2px 8px;border:1.5px solid #d9d9d9;border-radius:6px;font-size:11px;cursor:pointer;background:#fff;color:#666;transition:all .15s;font-weight:600;min-width:28px;}
+.date-btn:hover{border-color:#2d8c3c;color:#2d8c3c;background:#f0f7f0;}
+.date-btn.today-btn{border-color:#2d8c3c;color:#2d8c3c;background:#e8f5e9;}
+.select-all-bar{display:flex;align-items:center;gap:4px;}
+.select-all-bar label{font-size:12px;color:#666;cursor:pointer;display:flex;align-items:center;gap:3px;}
+.select-all-bar input{width:14px;height:14px;accent-color:#2d8c3c;cursor:pointer;}
+
+/* ===== Grid ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:20px 24px 100px;}
+
+/* ===== Card ===== */
+.card{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .2s;cursor:pointer;border:2px solid transparent;position:relative;}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-2px);}
+.card.selected{border-color:#2d8c3c;box-shadow:0 4px 16px rgba(45,140,60,.25);}
+.card-check{position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:50%;border:2px solid #ccc;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:5;transition:all .15s;}
+.card.selected .card-check{background:#2d8c3c;border-color:#fff;}
+.card-check::after{content:'';width:6px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px);opacity:0;}
+.card.selected .card-check::after{opacity:1;}
+.card-edit-btn{position:absolute;top:5px;left:5px;width:20px;height:20px;border-radius:50%;background:rgba(45,140,60,.9);color:#fff;display:flex;align-items:center;justify-content:center;z-index:5;font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s;}
+.card:hover .card-edit-btn{opacity:1;}
+.card-design-btn{position:absolute;top:5px;left:28px;width:20px;height:20px;border-radius:50%;background:rgba(108,92,231,.9);color:#fff;display:flex;align-items:center;justify-content:center;z-index:5;font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s;}
+.card:hover .card-design-btn{opacity:1;}
+.card-design-btn:hover{background:rgba(108,92,231,1);}
+
+/* ===== Label 60x40mm portrait (content in bottom 60×40) ===== */
+.label-60x40{width:100%;aspect-ratio:60/40;background:#fff;border:1px solid #eee;display:flex;flex-direction:column;padding:4px;overflow:hidden;position:relative;}
+.l40-name{font-weight:bold;font-size:7px;text-align:center;margin-bottom:2px;word-break:break-all;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.l40-price{position:absolute;right:5px;top:8px;font-weight:bold;font-size:8px;line-height:1;color:#111;background:#fff;padding-left:3px;}
+.label-60x40.has-price .l40-name{padding-right:42px;text-align:left;}
+.l40-info-row{display:flex;justify-content:space-between;font-size:5px;line-height:1.3;margin-bottom:1px;}
+.l40-mid{display:flex;justify-content:space-between;align-items:flex-start;gap:3px;flex:1;}
+.l40-mid-left{flex:1;font-size:5px;line-height:1.4;}
+.l40-mid-left div{margin-bottom:1px;}
+.l40-qr{width:22px;height:22px;flex-shrink:0;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.l40-qr img{width:16px;height:16px;object-fit:contain;}
+.l40-qr .qr-text{font-size:3px;text-align:center;margin-top:1px;line-height:1;white-space:nowrap;}
+.l40-barcode{margin-top:auto;text-align:center;}
+.l40-barcode svg{width:100%;max-height:20px;}
+.l40-barcode .bc-num{font-size:4px;text-align:center;letter-spacing:.3px;white-space:nowrap;}
+.l40-barcode-empty{margin-top:auto;height:2px;}
+
+/* ===== Card Meta ===== */
+.card-meta{padding:6px 8px;border-top:1px solid #f0f0f0;}
+.cm-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cm-info{display:flex;justify-content:space-between;margin-top:2px;}
+.cm-w{font-size:11px;color:#2d8c3c;background:#e8f5e9;padding:1px 5px;border-radius:3px;font-weight:600;}
+.cm-size{font-size:10px;color:#999;}
+.cm-qr-badge{font-size:9px;color:#e65100;background:#fff3e0;padding:0 4px;border-radius:3px;margin-left:3px;}
+.card-qty{position:absolute;bottom:5px;right:5px;display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.95);border-radius:4px;padding:1px 3px;box-shadow:0 1px 3px rgba(0,0,0,.1);z-index:5;}
+.card-qty label{font-size:9px;color:#666;}
+.card-qty input{width:28px;border:1px solid #ddd;border-radius:3px;padding:1px 2px;font-size:10px;text-align:center;outline:none;}
+
+/* ===== Action Bar ===== */
+.action-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e8;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 -2px 12px rgba(0,0,0,.08);z-index:95;transform:translateY(100%);transition:transform .25s;}
+.action-bar.show{transform:translateY(0);}
+.action-count{font-size:14px;}
+.action-count strong{color:#2d8c3c;font-size:18px;}
+.action-btns{display:flex;gap:10px;}
+.btn{padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;transition:all .15s;font-weight:500;}
+.btn-primary{background:#2d8c3c;color:#fff;}
+.btn-primary:hover{background:#247a32;}
+.btn-ghost{background:#f5f5f5;color:#666;}
+.btn-ghost:hover{background:#e8e8e8;}
+.btn-outline{background:#fff;border:1.5px solid #d9d9d9;color:#666;}
+.btn-outline:hover{border-color:#2d8c3c;color:#2d8c3c;}
+.upload-label{position:relative;overflow:hidden;}
+
+/* ===== Modal ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:auto;}
+.modal{background:#fff;border-radius:12px;max-width:90vw;max-height:90vh;overflow:auto;position:relative;}
+.modal-close{position:absolute;top:8px;right:12px;font-size:24px;cursor:pointer;color:#999;z-index:10;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.9);}
+.modal-close:hover{color:#333;background:#f0f0f0;}
+
+/* ===== Edit Modal ===== */
+.edit-modal{width:680px;max-width:90vw;padding:0;display:flex;}
+.edit-left{flex:1;padding:24px;overflow-y:auto;max-height:90vh;}
+.edit-right{width:280px;background:#f5f7f5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;border-left:1px solid #e8e8e8;}
+.edit-left h2{font-size:17px;margin-bottom:16px;color:#2d8c3c;}
+.edit-field{margin-bottom:12px;}
+.edit-field label{display:block;font-size:12px;color:#666;margin-bottom:4px;font-weight:500;}
+.edit-field input{width:100%;padding:7px 10px;border:1.5px solid #d9d9d9;border-radius:6px;font-size:13px;outline:none;transition:border-color .15s;}
+.edit-field input:focus{border-color:#2d8c3c;}
+.edit-field-row{display:flex;gap:10px;}
+.edit-field-row .edit-field{flex:1;}
+.edit-toggle{display:flex;align-items:center;gap:6px;}
+.edit-toggle input{width:16px;height:16px;accent-color:#2d8c3c;cursor:pointer;}
+.edit-toggle label{font-size:13px;color:#333;cursor:pointer;}
+.edit-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;}
+.edit-preview-label{font-size:11px;color:#999;margin-bottom:10px;}
+
+/* Preview label in edit modal - scaled up 3x from 60x40 */
+.preview-60x40{width:300px;height:200px;background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.1);display:flex;flex-direction:column;padding:10px;overflow:hidden;}
+.preview-60x40 .l40-name{font-size:16px;margin-bottom:6px;}
+.preview-60x40 .l40-price{right:14px;top:24px;font-size:18px;}
+.preview-60x40 .l40-info-row{font-size:12px;margin-bottom:3px;}
+.preview-60x40 .l40-mid-left{font-size:12px;line-height:1.5;}
+.preview-60x40 .l40-mid-left div{margin-bottom:3px;}
+.preview-60x40 .l40-qr{width:48px;height:48px;}
+.preview-60x40 .l40-qr .qr-text{font-size:8px;}
+.preview-60x40 .l40-barcode svg{max-height:36px;}
+.preview-60x40 .l40-barcode .bc-num{font-size:10px;}
+
+/* ===== Print Modal ===== */
+.print-modal{width:600px;max-width:90vw;padding:24px;}
+.print-modal h2{font-size:18px;margin-bottom:16px;}
+.print-section{margin-bottom:14px;}
+.print-section h3{font-size:13px;color:#999;margin-bottom:6px;font-weight:500;}
+.print-layout-options{display:flex;gap:10px;flex-wrap:wrap;}
+.layout-option{flex:1;min-width:100px;border:2px solid #e8e8e8;border-radius:8px;padding:10px;cursor:pointer;transition:all .15s;text-align:center;}
+.layout-option:hover{border-color:#2d8c3c;}
+.layout-option.selected{border-color:#2d8c3c;background:#f0f7f0;}
+.layout-option .lic{font-size:24px;margin-bottom:4px;}
+.layout-option .lt{font-size:13px;font-weight:600;margin-bottom:2px;}
+.layout-option .ld{font-size:11px;color:#999;}
+.print-summary{background:#f5f7f5;border-radius:8px;padding:12px;margin-bottom:12px;}
+.psr{display:flex;justify-content:space-between;padding:2px 0;font-size:13px;}
+.psr strong{color:#2d8c3c;}
+.print-actions{display:flex;gap:10px;justify-content:flex-end;}
+.print-tips{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#8d6e63;line-height:1.6;}
+.print-tips strong{color:#e65100;}
+.print-tips .tip-step{display:flex;gap:6px;margin-bottom:4px;}
+.print-tips .tip-num{color:#e65100;font-weight:bold;flex-shrink:0;}
+
+/* Print preview labels */
+.print-preview-area{max-height:300px;overflow-y:auto;background:#f5f7f5;border-radius:8px;padding:10px;margin-bottom:12px;}
+.print-preview-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.preview-label{width:180px;height:120px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px;display:flex;flex-direction:column;overflow:hidden;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.preview-label .pl-name{font-weight:bold;font-size:7px;text-align:center;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.preview-label .pl-info{display:flex;justify-content:space-between;font-size:5px;margin-bottom:1px;}
+.preview-label .pl-mid{display:flex;justify-content:space-between;flex:1;}
+.preview-label .pl-mid-l{font-size:5px;line-height:1.3;}
+.preview-label .pl-qr{width:22px;height:22px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;}
+.preview-label .pl-qr img{width:16px;height:16px;object-fit:contain;}
+.preview-label .pl-qr .qr-lbl{font-size:3px;text-align:center;white-space:nowrap;}
+.preview-label .pl-bc{text-align:center;margin-top:auto;}
+.preview-label .pl-bc svg{width:100%;max-height:20px;}
+.preview-label .pl-bc .bc-n{font-size:4px;text-align:center;white-space:nowrap;}
+.preview-label .pl-qty{position:absolute;top:2px;right:2px;background:#2d8c3c;color:#fff;font-size:8px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.preview-label .pl-price{position:absolute;top:8px;right:10px;font-weight:bold;font-size:9px;line-height:1;color:#111;background:#fff;padding-left:3px;}
+.preview-label.has-price .pl-name{padding-right:46px;text-align:left;}
+
+/* ===== Delivery Import ===== */
+.delivery-info{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:8px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap;}
+.delivery-info .di-label{color:#2d8c3c;font-weight:600;}
+.delivery-info .di-store{background:#2d8c3c;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;}
+.delivery-info .di-count{color:#666;}
+.delivery-info .di-clear{margin-left:auto;cursor:pointer;color:#ff5722;font-size:12px;padding:2px 8px;border-radius:4px;}
+.delivery-info .di-clear:hover{background:#fff3e0;}
+.match-badge{font-size:9px;padding:0 4px;border-radius:3px;margin-left:3px;}
+.match-badge.matched{color:#2d8c3c;background:#e8f5e9;}
+.match-badge.unmatched{color:#f44336;background:#ffebee;}
+
+/* ===== Image OCR Modal ===== */
+.ocr-modal{width:920px;max-width:95vw;padding:0;display:flex;flex-direction:column;}
+.ocr-modal .modal-close{top:8px;right:12px;}
+.ocr-header{padding:16px 20px 8px;border-bottom:1px solid #eee;}
+.ocr-header h2{font-size:17px;color:#2d8c3c;margin-bottom:4px;}
+.ocr-header p{font-size:12px;color:#999;}
+.ocr-body{display:flex;flex:1;overflow:hidden;}
+.ocr-left{width:420px;padding:16px;overflow-y:auto;border-right:1px solid #eee;background:#fafafa;}
+.ocr-left img{width:100%;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.ocr-status{margin-top:10px;padding:8px 12px;border-radius:6px;font-size:13px;text-align:center;}
+.ocr-status.working{background:#fff3e0;color:#e65100;}
+.ocr-status.done{background:#e8f5e9;color:#2d8c3c;}
+.ocr-progress{margin-top:8px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;}
+.ocr-progress-bar{height:100%;background:linear-gradient(90deg,#2d8c3c,#4caf50);transition:width .3s;width:0;}
+.ocr-right{flex:1;padding:16px;overflow-y:auto;}
+.ocr-right h3{font-size:14px;margin-bottom:10px;color:#333;}
+.ocr-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+.ocr-table th,.ocr-table td{border:1px solid #ddd;padding:5px 8px;text-align:center;vertical-align:middle;}
+.ocr-table th{background:#e8f5e9;color:#2d8c3c;font-weight:600;white-space:nowrap;}
+.ocr-table td:first-child{min-width:150px;text-align:left;}
+.ocr-table td:first-child input{text-align:left;min-width:140px;width:100%;box-sizing:border-box;font-size:12px;}
+.ocr-table input{width:56px;border:none;padding:3px 4px;font-size:12px;text-align:center;background:transparent;outline:none;box-sizing:border-box;}
+.ocr-table input:focus{background:#fff8e1;border:1px solid #ffe082;border-radius:3px;}
+.ocr-table .del-btn{cursor:pointer;color:#ff5722;font-size:14px;}
+.ocr-actions{display:flex;gap:10px;margin-top:14px;justify-content:flex-end;}
+.ocr-raw{margin-top:10px;background:#f5f5f5;border-radius:6px;padding:8px;font-size:11px;color:#999;max-height:100px;overflow-y:auto;white-space:pre-wrap;display:none;}
+.selected-list{max-height:160px;overflow-y:auto;border:1px solid #e8e8e8;border-radius:8px;padding:4px;}
+.si-row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;font-size:12px;}
+.si-row:hover{background:#f5f5f5;}
+.si-row .si-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.si-row .si-qty{color:#2d8c3c;font-weight:600;}
+.si-row .si-rm{cursor:pointer;color:#ff5722;font-size:15px;padding:0 3px;}
+
+/* ===== Empty State ===== */
+.empty-state{text-align:center;padding:80px 24px;color:#999;}
+.empty-state .es-icon{font-size:64px;margin-bottom:16px;}
+
+/* ===== Print Styles ===== */
+@media print{
+  @page{margin:0;}
+  body{background:#fff;}
+  .header,.toolbar,.action-bar,.modal-overlay,.grid,.empty-state{display:none!important;}
+  .print-container{display:block!important;}
+  .print-page{page-break-after:always;width:210mm;min-height:297mm;padding:5mm;box-sizing:border-box;display:flex;flex-wrap:wrap;align-content:flex-start;gap:0;}
+  .print-page:last-child{page-break-after:auto;}
+  .print-label{width:60mm;height:40mm;box-sizing:border-box;overflow:hidden;break-inside:avoid;position:relative;background:#fff;border:0.5px solid #eee;padding:0;font-family:'Microsoft YaHei','SimHei',sans-serif;}
+  .print-label .pl-name{font-weight:bold;font-size:7pt;text-align:center;margin-bottom:0.5mm;word-break:break-all;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .print-label .pl-info-row{display:flex;justify-content:space-between;font-size:5pt;line-height:1.3;margin-bottom:0.3mm;}
+  .print-label .pl-mid{display:flex;justify-content:space-between;align-items:flex-start;gap:1mm;flex:1;}
+  .print-label .pl-mid-left{flex:1;font-size:5pt;line-height:1.5;}
+  .print-label .pl-mid-left div{margin-bottom:0.2mm;}
+  .print-label .pl-qr{width:12mm;height:12mm;flex-shrink:0;text-align:center;}
+  .print-label .pl-qr img{width:100%;height:100%;object-fit:contain;}
+  .print-label .pl-qr .qr-label{font-size:3.5pt;text-align:center;margin-top:0.3mm;line-height:1;}
+  .print-label .pl-barcode{margin-top:auto;text-align:center;}
+  .print-label .pl-barcode svg{width:100%;max-height:8mm;}
+  .print-label .pl-barcode .bc-num{font-size:5pt;text-align:center;}
+  .print-container.landscape .print-page{width:297mm;min-height:210mm;}
+  /* Thermal printer mode: each label = one page, exact 60x40mm */
+  .print-container.thermal .print-page{width:60mm;min-height:40mm;padding:0;page-break-after:always;display:block;}
+  .print-container.thermal .print-label{width:60mm;height:40mm;border:none;}
+}
+.print-container{display:none;}
+
+/* ===== Drag Editor ===== */
+.editor-overlay{position:fixed;inset:0;background:#1e1e2e;z-index:300;display:none;flex-direction:column;}
+.editor-overlay.show{display:flex;}
+.editor-topbar{height:48px;background:#252535;display:flex;align-items:center;justify-content:space-between;padding:0 16px;color:#fff;flex-shrink:0;}
+.editor-topbar .et-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.editor-topbar .et-actions{display:flex;gap:8px;}
+.et-paper{display:flex;align-items:center;gap:4px;background:#1e1e2e;padding:3px 10px;border-radius:6px;border:1px solid #3a3a4a;}
+.et-paper input{width:54px;padding:4px 6px;background:#1a1a2e;border:1px solid #3a3a4a;border-radius:4px;color:#fff;font-size:13px;text-align:center;outline:none;}
+.et-paper input:focus{border-color:#2d8c3c;}
+.overflow-tip{background:#ffebee;color:#c62828;padding:6px 16px;font-size:13px;flex-shrink:0;border-bottom:1px solid #ffcdd2;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.overflow-tip .ot-count{background:#c62828;color:#fff;border-radius:10px;padding:0 8px;font-weight:bold;font-size:12px;}
+.canvas-label.overflow{border-color:#ff4444!important;border-style:solid;box-shadow:0 0 0 2px rgba(255,68,68,.25);z-index:5;}
+.guide-line{position:absolute;background:#ff3b30;z-index:100;pointer-events:none;box-shadow:0 0 4px rgba(255,59,48,.6);}
+.guide-line.h{height:1px;left:0;right:0;}
+.guide-line.v{width:1px;top:0;bottom:0;}
+.editor-topbar .btn{padding:5px 14px;font-size:12px;}
+.editor-body{flex:1;display:flex;overflow:hidden;}
+.editor-left{width:110px;background:#2a2a3a;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:10px;flex-shrink:0;border-right:1px solid #33334a;}
+.el-tool{width:88px;height:76px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#999;font-size:13px;gap:6px;transition:all .15s;border:1.5px solid transparent;}
+.el-tool:hover{background:#33334a;color:#fff;}
+.el-tool.active{background:#2d8c3c;color:#fff;}
+.el-tool svg{width:34px;height:34px;}
+.editor-center{flex:1;display:flex;align-items:center;justify-content:center;background:#1a1a2e;overflow:auto;position:relative;}
+.editor-canvas-wrap{position:relative;}
+.editor-canvas{width:600px;height:400px;background:#fff;position:relative;overflow:visible;box-shadow:0 4px 24px rgba(0,0,0,.4);background-image:linear-gradient(rgba(45,140,60,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(45,140,60,.06) 1px,transparent 1px);background-size:10px 10px;}
+.editor-ruler-h{height:18px;background:#33334a;color:#888;font-size:8px;display:flex;align-items:flex-end;position:relative;}
+.editor-ruler-v{width:18px;background:#33334a;color:#888;font-size:8px;display:flex;flex-direction:column;align-items:flex-end;position:relative;}
+.editor-ruler-wrap{display:flex;flex-direction:column;}
+.editor-ruler-row{display:flex;}
+.editor-corner{width:18px;height:18px;background:#33334a;flex-shrink:0;}
+.canvas-label{position:absolute;cursor:move;user-select:none;border:1.5px dashed transparent;}
+.canvas-label:hover{border-color:rgba(45,140,60,.4);}
+.canvas-label.selected{border-color:#2d8c3c;border-style:solid;z-index:10;}
+.canvas-label.multi-selected{border-color:#7cb342;border-style:solid;z-index:9;}
+.cl-content{width:100%;height:100%;overflow:hidden;display:flex;align-items:center;pointer-events:none;}
+.cl-text{font-family:'Microsoft YaHei',sans-serif;word-break:break-all;text-align:center;width:100%;}
+.cl-barcode{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.cl-barcode .bc-svg-wrap{width:100%;flex:1;overflow:hidden;display:flex;align-items:stretch;pointer-events:none;}
+.cl-barcode svg{width:100%;height:100%;display:block;pointer-events:none;}
+.cl-barcode .bc-num{font-size:4px;text-align:center;pointer-events:none;}
+.cl-qr{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.cl-qr img{max-width:100%;max-height:80%;pointer-events:none;}
+.cl-qr .qr-text{font-size:3px;text-align:center;pointer-events:none;}
+.cl-image{width:100%;height:100%;pointer-events:none;}
+.cl-image img{width:100%;height:100%;object-fit:contain;pointer-events:none;}
+.cl-handle{position:absolute;width:10px;height:10px;background:#2d8c3c;border:2px solid #fff;border-radius:2px;z-index:10;box-shadow:0 0 3px rgba(0,0,0,.3);}
+.cl-handle.nw{top:-5px;left:-5px;cursor:nw-resize;}
+.cl-handle.ne{top:-5px;right:-5px;cursor:ne-resize;}
+.cl-handle.sw{bottom:-5px;left:-5px;cursor:sw-resize;}
+.cl-handle.se{bottom:-5px;right:-5px;cursor:se-resize;}
+.cl-handle.n{top:-5px;left:50%;margin-left:-5px;cursor:n-resize;}
+.cl-handle.s{bottom:-5px;left:50%;margin-left:-5px;cursor:s-resize;}
+.cl-handle.w{top:50%;left:-5px;margin-top:-5px;cursor:w-resize;}
+.cl-handle.e{top:50%;right:-5px;margin-top:-5px;cursor:e-resize;}
+.editor-right{width:380px;background:#252535;color:#ddd;overflow-y:auto;flex-shrink:0;padding:18px;}
+.er-section{margin-bottom:20px;}
+.er-section h3{font-size:14px;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+.er-field{margin-bottom:14px;}
+.er-field label{display:block;font-size:13px;color:#999;margin-bottom:5px;}
+.er-field input,.er-field select,.er-field textarea{width:100%;padding:8px 12px;background:#1a1a2e;border:1px solid #3a3a4a;border-radius:6px;color:#ddd;font-size:14px;outline:none;}
+.er-field input:focus,.er-field select:focus,.er-field textarea:focus{border-color:#2d8c3c;}
+.er-field-row{display:flex;gap:10px;}
+.er-field-row .er-field{flex:1;}
+.er-btn-group{display:flex;gap:6px;flex-wrap:wrap;}
+.er-btn{padding:7px 16px;background:#33334a;border:1px solid #3a3a4a;border-radius:6px;color:#ccc;font-size:13px;cursor:pointer;}
+.er-btn:hover{background:#3a3a4a;color:#fff;}
+.er-btn.danger{color:#ff6b6b;}
+.er-btn.danger:hover{background:#3a1a1a;}
+.er-empty{text-align:center;color:#666;font-size:14px;padding:40px 0;}
+.er-element-list{max-height:200px;overflow-y:auto;}
+.er-el-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;color:#aaa;}
+.er-el-item:hover{background:#33334a;}
+.er-el-item.active{background:#2d8c3c;color:#fff;}
+.er-el-item.multi{background:#3a5a3a;color:#8bc34a;}
+.er-el-item .el-type{font-size:16px;}
+.er-el-item .el-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.canvas-info{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);color:#aaa;font-size:10px;padding:2px 8px;border-radius:4px;}
+
+/* ===== Drag & Drop Import ===== */
+.drop-overlay{position:fixed;inset:0;background:rgba(45,140,60,.88);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;backdrop-filter:blur(4px);}
+.drop-overlay.show{display:flex;}
+.drop-overlay .do-icon{font-size:72px;margin-bottom:16px;animation:do-pulse 1s ease-in-out infinite;}
+.drop-overlay .do-title{font-size:26px;font-weight:600;letter-spacing:2px;}
+.drop-overlay .do-sub{font-size:14px;opacity:.9;margin-top:8px;}
+@keyframes do-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.drag-tip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1.5px dashed #2d8c3c;border-radius:6px;color:#2d8c3c;font-size:11px;background:#f6fbf6;margin-right:8px;cursor:pointer;}
+.drag-tip:hover{background:#e8f5e9;}
+.toast-import{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:#2d8c3c;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;box-shadow:0 4px 16px rgba(45,140,60,.35);z-index:10000;opacity:0;pointer-events:none;transition:all .3s;}
+.toast-import.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast-import.err{background:#d32f2f;box-shadow:0 4px 16px rgba(211,47,47,.35);}
+
+/* ===== 登录页 ===== */
+.login-page{position:fixed;inset:0;z-index:9998;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#2d8c3c 0%,#1a6b28 50%,#145a1e 100%);overflow:hidden;}
+.login-page.show{display:flex;}
+.login-page::before{content:'';position:absolute;top:-40%;right:-20%;width:60%;height:80%;background:rgba(255,255,255,.05);border-radius:50%;transform:rotate(20deg);}
+.login-page::after{content:'';position:absolute;bottom:-30%;left:-15%;width:50%;height:70%;background:rgba(255,255,255,.04);border-radius:50%;transform:rotate(-15deg);}
+.login-box{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);padding:44px 40px;border-radius:16px;width:400px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.35);position:relative;z-index:2;text-align:center;animation:login-fade .5s cubic-bezier(.4,0,.2,1);}
+@keyframes login-fade{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.login-logo{width:72px;height:72px;background:linear-gradient(135deg,#2d8c3c,#43a047);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 16px;box-shadow:0 8px 24px rgba(45,140,60,.3);}
+.login-box h2{font-size:22px;font-weight:700;color:#1a1a1a;letter-spacing:1px;margin-bottom:4px;}
+.login-box .lb-sub{font-size:13px;color:#999;margin-bottom:28px;}
+.login-field{margin-bottom:18px;text-align:left;}
+.login-field label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:6px;}
+.login-field .lf-wrap{position:relative;}
+.login-field .lf-wrap::before{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:17px;z-index:1;}
+.login-field.user .lf-wrap::before{content:'👤';}
+.login-field.pwd .lf-wrap::before{content:'🔑';}
+.login-field input{width:100%;padding:12px 14px 12px 44px;border:2px solid #e8e8e8;border-radius:10px;font-size:15px;transition:all .25s;background:#fafbfc;box-sizing:border-box;}
+.login-field input:focus{outline:none;border-color:#2d8c3c;background:#fff;box-shadow:0 0 0 4px rgba(45,140,60,.1);}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#2d8c3c,#43a047);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .25s;letter-spacing:6px;margin-top:6px;}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(45,140,60,.35);}
+.login-btn:active{transform:translateY(0);}
+.login-error{color:#d32f2f;font-size:13px;margin-top:14px;min-height:18px;}
+.login-error.ok{color:#2d8c3c;}
+.login-footer{font-size:12px;color:#aaa;margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;}
+.current-user{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.15);padding:3px 12px;border-radius:20px;font-size:13px;font-weight:600;color:#fff;}
+.logout-btn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:3px 12px;font-size:12px;cursor:pointer;transition:all .2s;}
+.logout-btn:hover{background:rgba(255,255,255,.3);}
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="loginPage" class="login-page show">
+  <div class="login-box">
+    <div class="login-logo">🥬</div>
+    <h2>齐云山内部使用</h2>
+    <div class="lb-sub">请登录后使用</div>
+    <div class="login-field user">
+      <label>登录账号</label>
+      <div class="lf-wrap"><input type="text" id="loginAccount" placeholder="请输入账号" autocomplete="username"></div>
+    </div>
+    <div class="login-field pwd">
+      <label>登录密码</label>
+      <div class="lf-wrap"><input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    </div>
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-footer">🥬 齐云山内部使用</div>
+  </div>
+</div>
+
+<!-- 拖拽导入遮罩层 -->
+<div class="drop-overlay" id="dropOverlay">
+  <div class="do-icon">📂</div>
+  <div class="do-title">松开鼠标，导入文件</div>
+  <div class="do-sub">支持一次拖多个图片合并识别，也支持 Excel配送单(.xlsx/.xls/.csv)</div>
+</div>
+<!-- 导入结果提示 -->
+<div class="toast-import" id="importToast"></div>
+
+<div class="header">
+  <h1><span>🥬</span> 齐云山内部使用</h1>
+  <div class="header-info">
+    <span>📋 共 <strong id="totalCount">0</strong> 个标签</span>
+    <span>📐 60×40mm</span>
+    <span class="current-user" id="currentUser"></span>
+    <button class="logout-btn" id="logoutBtn" onclick="doLogout()" style="display:none;">退出</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="search-box">
+    <span class="si">🔍</span>
+    <input type="text" id="searchInput" placeholder="搜索标签...">
+  </div>
+  <div class="filter-chips" id="filterChips"></div>
+  <select class="sort-select" id="sortSelect">
+    <option value="default">默认排序</option>
+    <option value="name">按名称</option>
+    <option value="weight">按重量</option>
+  </select>
+  <div class="date-edit">
+    <label>📅 日期:</label>
+    <input type="date" id="dateInput">
+    <button class="date-btn" onclick="adjustDate(1)" title="明天">+1</button>
+    <button class="date-btn" onclick="adjustDate(2)" title="后天">+2</button>
+    <button class="date-btn" onclick="adjustDate(3)" title="大后天">+3</button>
+    <button class="date-btn today-btn" onclick="setToday()" title="回到今天">今天</button>
+  </div>
+  <div class="select-all-bar">
+    <label><input type="checkbox" id="selectAll"> 全选</label>
+  </div>
+  <button class="btn btn-primary" onclick="openAddModal()" style="padding:4px 14px;font-size:12px;margin-right:8px;">➕ 新增模板</button>
+  <label class="btn btn-outline upload-label" style="padding:4px 12px;font-size:12px;cursor:pointer;">
+    📋 导入配送单
+    <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleExcelUpload(event)">
+  </label>
+  <label class="btn btn-outline upload-label" style="padding:4px 12px;font-size:12px;cursor:pointer;">
+    🖼️ 图片识别
+    <input type="file" id="imageFile" accept=".jpg,.jpeg,.png,.bmp,.webp" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleImageUpload(event)">
+  </label>
+  <select id="storeSelect" class="sort-select" style="display:none;" onchange="onStoreSelect()">
+    <option value="">选择门店...</option>
+  </select>
+</div>
+
+<div class="delivery-info" id="deliveryInfo" style="display:none;">
+  <span class="di-label">📦 配送单已导入</span>
+  <span>门店：</span>
+  <span class="di-store" id="diStore">—</span>
+  <span class="di-count">共 <strong id="diCount">0</strong> 张标签</span>
+  <span class="di-clear" onclick="clearDelivery()">✕ 清除</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="empty-state" id="emptyState" style="display:none;">
+  <div class="es-icon">📦</div>
+  <p>没有找到匹配的标签</p>
+</div>
+
+<div class="action-bar" id="actionBar">
+  <div class="action-count">已选 <strong id="selCount">0</strong> 种，共 <strong id="totalCopies">0</strong> 张</div>
+  <div class="action-btns">
+    <button class="btn btn-ghost" onclick="clearSel()">清空</button>
+    <button class="btn btn-outline" onclick="openPrint()">🖨️ 打印预览</button>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editOverlay" onclick="if(event.target===this)closeM('editOverlay')">
+  <div class="modal edit-modal">
+    <span class="modal-close" onclick="closeM('editOverlay')">&times;</span>
+    <div class="edit-left">
+      <h2>✏️ 编辑标签内容</h2>
+      <div class="edit-field">
+        <label>产品名称</label>
+        <input type="text" id="editName" oninput="updatePreview()">
+      </div>
+      <div class="edit-field-row">
+        <div class="edit-field">
+          <label>净含量</label>
+          <input type="text" id="editNet" oninput="updatePreview()">
+        </div>
+        <div class="edit-field">
+          <label>包装日期</label>
+          <input type="text" id="editDate" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="edit-field">
+        <label>产地</label>
+        <input type="text" id="editOrigin" oninput="updatePreview()">
+      </div>
+      <div class="edit-field">
+        <label>销售方</label>
+        <input type="text" id="editSeller" oninput="updatePreview()">
+      </div>
+      <div class="edit-field">
+        <label>条形码（真实编码）</label>
+        <input type="text" id="editBarcode" oninput="updatePreview()">
+      </div>
+      <div class="edit-field">
+        <div class="edit-toggle">
+          <input type="checkbox" id="editHasQR" onchange="updatePreview()">
+          <label for="editHasQR">显示承诺达标合格证（二维码图片）</label>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-ghost" onclick="closeM('editOverlay')">取消</button>
+        <button class="btn btn-primary" onclick="saveEdit()">💾 保存</button>
+      </div>
+    </div>
+    <div class="edit-right">
+      <div class="edit-preview-label">实时预览（60×40mm）</div>
+      <div id="editPreviewBox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Template Modal -->
+<div class="modal-overlay" id="addOverlay" onclick="if(event.target===this)closeM('addOverlay')">
+  <div class="modal edit-modal">
+    <span class="modal-close" onclick="closeM('addOverlay')">&times;</span>
+    <div class="edit-left">
+      <h2>➕ 新增标签模板</h2>
+      <div class="edit-field">
+        <label>产品名称 <span style="color:#e65100;">*</span></label>
+        <input type="text" id="addName" placeholder="例如：湖南土农家小白菜300g" oninput="updateAddPreview()">
+      </div>
+      <div class="edit-field-row">
+        <div class="edit-field">
+          <label>净含量</label>
+          <input type="text" id="addNet" placeholder="例如：300g" oninput="updateAddPreview()">
+        </div>
+        <div class="edit-field">
+          <label>包装日期</label>
+          <input type="text" id="addDate" oninput="updateAddPreview()">
+        </div>
+      </div>
+      <div class="edit-field">
+        <label>产地</label>
+        <input type="text" id="addOrigin" value="湖南省郴州市" oninput="updateAddPreview()">
+      </div>
+      <div class="edit-field">
+        <label>销售方</label>
+        <input type="text" id="addSeller" value="华润万家有限公司" oninput="updateAddPreview()">
+      </div>
+      <div class="edit-field">
+        <label>条形码（真实编码）</label>
+        <input type="text" id="addBarcode" placeholder="例如：2153205220013" oninput="updateAddPreview()">
+      </div>
+      <div class="edit-field">
+        <div class="edit-toggle">
+          <input type="checkbox" id="addHasQR" onchange="updateAddPreview()">
+          <label for="addHasQR">显示承诺达标合格证（二维码图片）</label>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-ghost" onclick="closeM('addOverlay')">取消</button>
+        <button class="btn btn-primary" onclick="saveAddTemplate()">💾 保存模板</button>
+      </div>
+    </div>
+    <div class="edit-right">
+      <div class="edit-preview-label">实时预览（60×40mm）</div>
+      <div id="addPreviewBox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Print Modal -->
+<div class="modal-overlay" id="printOverlay" onclick="if(event.target===this)closeM('printOverlay')">
+  <div class="modal print-modal">
+    <span class="modal-close" onclick="closeM('printOverlay')">&times;</span>
+    <h2>🖨️ 打印预览</h2>
+    <div id="printDeliveryInfo" style="display:none;margin-bottom:12px;"></div>
+    <div class="print-section">
+      <h3>标签预览</h3>
+      <div class="print-preview-area">
+        <div class="print-preview-grid" id="printPreviewGrid"></div>
+      </div>
+    </div>
+    <div class="print-section">
+      <h3>已选标签</h3>
+      <div class="selected-list" id="selList"></div>
+    </div>
+    <div class="print-section">
+      <h3>打印布局</h3>
+      <div class="print-layout-options">
+        <div class="layout-option selected" onclick="selLayout(this,'a4p')">
+          <div class="lic">📄</div><div class="lt">A4竖向</div><div class="ld">每页约24张</div>
+        </div>
+        <div class="layout-option" onclick="selLayout(this,'a4l')">
+          <div class="lic">📃</div><div class="lt">A4横向</div><div class="ld">每页约33张</div>
+        </div>
+        <div class="layout-option" onclick="selLayout(this,'single')">
+          <div class="lic">🏷️</div><div class="lt">单张</div><div class="ld">每页1张</div>
+        </div>
+        <div class="layout-option" onclick="selLayout(this,'thermal')">
+          <div class="lic">🔥</div><div class="lt">热敏打印机</div><div class="ld">60×40mm 逐张打印</div>
+        </div>
+      </div>
+    </div>
+    <div class="print-summary" id="printSum"></div>
+    <div class="print-tips" id="printTips" style="display:none;"></div>
+    <div class="print-actions">
+      <button class="btn btn-ghost" onclick="closeM('printOverlay')">取消</button>
+      <button class="btn btn-primary" onclick="doPrint()">🖨️ 确认打印</button>
+    </div>
+  </div>
+</div>
+
+<div class="print-container" id="printContainer"></div>
+
+<!-- Image OCR Modal -->
+<div class="modal-overlay" id="ocrOverlay" onclick="if(event.target===this)closeM('ocrOverlay')">
+  <div class="modal ocr-modal">
+    <span class="modal-close" onclick="closeM('ocrOverlay')">&times;</span>
+    <div class="ocr-header">
+      <h2>🖼️ 图片识别配送单</h2>
+      <p>上传配送单截图，系统自动OCR识别后可手动修正，确认后选择门店打印</p>
+    </div>
+    <div class="ocr-body">
+      <div class="ocr-left">
+        <img id="ocrPreview" src="" style="display:none;">
+        <div class="ocr-status" id="ocrStatus">等待上传图片...</div>
+        <div class="ocr-progress" id="ocrProgressWrap" style="display:none;">
+          <div class="ocr-progress-bar" id="ocrProgressBar"></div>
+        </div>
+        <div class="ocr-raw" id="ocrRaw"></div>
+      </div>
+      <div class="ocr-right">
+        <h3>识别结果（可编辑）</h3>
+        <table class="ocr-table" id="ocrTable">
+          <thead><tr id="ocrHeaderRow"></tr></thead>
+          <tbody id="ocrBody"></tbody>
+        </table>
+        <div class="ocr-actions">
+          <button class="btn btn-ghost" onclick="addOcrRow()">+ 添加行</button>
+          <button class="btn btn-outline" onclick="reRunOCR()">🔄 重新识别</button>
+          <button class="btn btn-primary" onclick="confirmOcrData()">✓ 确认数据</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drag Editor -->
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-topbar">
+    <div class="et-title">🎨 标签设计编辑器 — <span id="editorLabelName"></span> <span id="editorPaperLabel" style="color:#888;font-size:12px;font-weight:normal;">(60×40mm)</span></div>
+    <div class="et-actions">
+      <div class="et-paper" title="修改画布纸张尺寸，点击应用后生效">
+        <span style="color:#aaa;">📐纸张</span>
+        <input type="number" id="paperW" min="20" max="200" step="1" value="60">
+        <span style="color:#aaa;">×</span>
+        <input type="number" id="paperH" min="20" max="200" step="1" value="40">
+        <span style="color:#aaa;">mm</span>
+        <button class="btn btn-ghost" onclick="applyPaperSize()" style="padding:4px 12px;font-size:12px;">应用</button>
+      </div>
+      <button class="btn btn-ghost" onclick="editorReset()">↺ 恢复默认</button>
+      <button class="btn btn-ghost" onclick="closeEditor()">✕ 退出</button>
+      <button class="btn btn-ghost" onclick="editorPrintNow()" style="background:#6c5ce7;color:#fff;">🖨️ 打印预览</button>
+      <button class="btn btn-primary" onclick="editorSave()">💾 保存布局</button>
+    </div>
+  </div>
+  <div class="overflow-tip" id="overflowTip" style="display:none;"></div>
+  <div class="editor-body">
+    <div class="editor-left">
+      <div class="el-tool" onclick="editorAddEl('text')" title="添加文本">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        <span>文本</span>
+      </div>
+      <div class="el-tool" onclick="editorAddEl('barcode')" title="添加条码">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14"/></svg>
+        <span>条码</span>
+      </div>
+      <div class="el-tool" onclick="editorAddEl('qr')" title="添加二维码">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M20 14v3M14 20h3M20 20v1"/></svg>
+        <span>二维码</span>
+      </div>
+      <div class="el-tool" onclick="document.getElementById('editorImageInput').click()" title="插入图片">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span>图片</span>
+      </div>
+      <input type="file" id="editorImageInput" accept="image/*" style="display:none;" onchange="handleEditorImageUpload(event)">
+    </div>
+    <div class="editor-center">
+      <div class="editor-ruler-wrap">
+        <div class="editor-ruler-row">
+          <div class="editor-corner"></div>
+          <div class="editor-ruler-h" id="rulerH" style="width:600px;"></div>
+        </div>
+        <div class="editor-ruler-row">
+          <div class="editor-ruler-v" id="rulerV" style="height:400px;"></div>
+          <div class="editor-canvas-wrap">
+            <div class="editor-canvas" id="editorCanvas">
+              <div class="canvas-info">60mm × 40mm</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="editor-right" id="editorRight">
+      <div class="er-section">
+        <h3>属性面板</h3>
+        <div class="er-empty" id="erEmpty">点击元素添加到画布<br>或选中元素编辑属性</div>
+        <div id="erProps" style="display:none;"></div>
+      </div>
+      <div class="er-section">
+        <h3>元素列表</h3>
+        <div class="er-element-list" id="erElementList"></div>
+      </div>
+      <div class="er-section">
+        <h3>快捷操作</h3>
+        <div class="er-btn-group">
+          <button class="er-btn" onclick="editorDuplicate()">📋 复制</button>
+          <button class="er-btn danger" onclick="editorDelete()">🗑 删除</button>
+          <button class="er-btn" onclick="editorAlign('top')">⬆ 顶对齐</button>
+          <button class="er-btn" onclick="editorAlign('center')">↔ 居中</button>
+          <button class="er-btn" onclick="editorAlign('bottom')">⬇ 底对齐</button>
+          <button class="er-btn" onclick="editorNudge('left')">⬅ 左移</button>
+          <button class="er-btn" onclick="editorNudge('right')">➡ 右移</button>
+          <button class="er-btn" onclick="editorNudge('up')">⬆ 上移</button>
+          <button class="er-btn" onclick="editorNudge('down')">⬇ 下移</button>
+        </div>
+        <div style="margin-top:8px;padding:10px 12px;background:#1a1a2e;border-radius:6px;font-size:13px;color:#666;line-height:1.7;">
+          <div>⌨️ 方向键 = 移动1mm</div>
+          <div>⌨️ Shift+方向键 = 移动0.1mm</div>
+          <div>⌨️ Delete = 删除 | Esc = 取消选中</div>
+          <div style="color:#8bc34a;">💡 Ctrl+点击 = 多选(可一起拖动/调字号/宽高)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="labels_data_barcode_bleed_v12.js"></script>
+<script>
+const DATA = LABELS_DATA;
+// 加载自定义模板（通过"新增模板"添加的标签，存在浏览器localStorage）
+try{
+  const _cts=JSON.parse(localStorage.getItem('labelCustomTemplates')||'[]');
+  if(Array.isArray(_cts)) _cts.forEach(function(t){ if(t&&t.productName) DATA.push(t); });
+}catch(e){}
+const selected = new Map();
+let curFilter='all', curSort='default', curLayout='a4p', editingIdx=-1;
+let overrides = {};
+
+// 衡大厨模板库里的品名关键词，用于顶部“衡大厨”筛选
+const HENGDA_KEYS=[
+  '农家上海青400g','农家上海青苗250g','农家仔南瓜400g','农家仔姜300g','农家仔白菜550g',
+  '农家小白菜300g','农家小西兰花300g','农家小青瓜500g','农家小青菜300g','农家朝天椒50g',
+  '农家枸杞尖头200g','农家棒菜头500g','农家水果包菜700g','农家甜薯400g','农家生菜苗250g',
+  '农家白菜苔300g','农家白萝卜700g','农家红头土蒜苗150g','农家红扁豆300g','农家红菜苔300g',
+  '农家红萝卜300g','农家红薯叶400g','农家芦笋250g','农家苦瓜600g','农家荷兰豆200g',
+  '农家菜心200g','农家菠菜300g','农家青番茄400g','农家马铃薯250g','农家鲜黄花菜100g',
+  '农家黄阳白菜1000g','土洋葱350g','土紫苏50g','土莴笋900g','土藠头200g',
+  '土酒红茄子500g','土青圆茄250g','土香芋500g','小叶韭菜200g','小炒肉辣椒200g',
+  '屋前香菜50g','屋前香葱50g','带味黄瓜400g','油菜菜苔280g','洋蒜苔300g',
+  '浓汁番茄300g','湖南小辣椒200g','湖南鸡毛菜200g','湘农甜玉米400g','湘线椒200g',
+  '玉女黄瓜500g','白油丝瓜300g','紫皮蒜头180g','红线椒200g','红菜苔',
+  '芥兰头650g','螺丝椒200g','螺线椒200g','青红双拼鸡肠椒150g','高山土芹菜200g',
+  '高山小黄姜200g','高山毛白菜400g','鲜切老南瓜400g','仔白菜','农家紫圆茄','白玉小青瓜'
+].map(normalizeSourceName);
+
+function normalizeSourceName(s){
+  return String(s||'')
+    .replace(/【湖南土菜】/g,'')
+    .replace(/湖南土菜\d*号/g,'')
+    .replace(/湖南/g,'')
+    .replace(/[【】\[\]（）()·\s_、，,．.：:\-—]/g,'')
+    .replace(/农家|高山|土/g,'')
+    .toLowerCase();
+}
+function isHengdaLabel(l){
+  return l && l.source === '衡大厨';
+}
+
+// ===== Drag Editor vars (declared early for renderGrid access) =====
+let EDITOR_SCALE=10; // 基准10x(60mm=600px)，打开编辑器时按窗口大小自动放大
+let editorIdx=-1, editorElements=[], editorSelected=-1, editorDragInfo=null;
+let editorMultiSel=new Set(); // 多选集合(Ctrl+点击) index集合
+let editorPaperW=60, editorPaperH=40; // 当前编辑器画布(纸张)尺寸 mm
+let editorLayouts={}; // {idx: {paperW,paperH,elements} 或旧格式 [elements]}
+const LAYOUT_STORAGE_KEY='labelLayouts_huarun_60x40_v14';
+const APP_DATA_VERSION='huarun_60x40_20260812_v14';
+try{
+  if(localStorage.getItem('labelAppDataVersion')!==APP_DATA_VERSION){
+    localStorage.setItem('labelAppDataVersion',APP_DATA_VERSION);
+  }
+}catch(e){}
+try{editorLayouts=JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY)||'{}');}catch(e){editorLayouts={};}
+
+// ===== 默认模板：所有标签默认使用"农家油麦苗300g"模板的布局，可单独覆盖 =====
+function getBaseLayoutIdx(){
+  // 找到基准模板：displayName/productName/filename 中含"油麦"且"300g"
+  for(let i=0;i<DATA.length;i++){
+    const n=(DATA[i].displayName||DATA[i].productName||DATA[i].filename||'');
+    if(n.indexOf('油麦')>=0&&n.indexOf('300g')>=0)return i;
+  }
+  return 0; // 找不到就默认第一条
+}
+function buildPreviousElements(idx){
+  const l=DATA[idx];
+  const bc=getField(l,idx,'barcode');
+  const hasQR=getField(l,idx,'hasQR');
+  const name=getField(l,idx,'productName');
+  const net=getField(l,idx,'netContent');
+  let date=getField(l,idx,'packDate');
+  const dl=getField(l,idx,'dateLabel')||'包装日期';
+  const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+  if(topD)date=topD;
+  const origin=getField(l,idx,'origin');
+  const seller=getField(l,idx,'seller');
+  const els=[
+    {type:'text',x:-1,y:2.3,w:48,h:6.5,content:name,fontSize:10,bold:true,align:'center',field:'productName'},
+    {type:'text',x:2,y:9.7,w:16,h:4.6,content:'净含量：'+net,fontSize:7.5,bold:false,align:'left',field:'netContent'},
+    {type:'text',x:18,y:9.7,w:31,h:4.6,content:dl+'：'+date,fontSize:7.5,bold:false,align:'left',field:'packDate'},
+    {type:'text',x:2,y:14.8,w:46,h:4.8,content:'产地：'+origin,fontSize:7.5,bold:false,align:'left',field:'origin'},
+  ];
+  if(hasQR){
+    els.forEach(el=>{
+      if(el.field==='netContent'){el.x=2;el.w=16;el.fontSize=7.5;el.noWrap=true;}
+      if(el.field==='packDate'){el.x=18.5;el.w=28.5;el.fontSize=7.5;el.noWrap=true;}
+      if(el.field==='origin')el.w=40;
+    });
+    els.push({type:'text',x:2,y:19.8,w:40,h:5.2,content:'销售方：'+seller,fontSize:7.5,bold:false,align:'left',field:'seller'});
+    els.push({type:'qr',x:47.5,y:1,w:12,h:12,content:'',field:'qr'});
+  }else{
+    els.push({type:'text',x:5,y:19.8,w:52,h:5.2,content:'销售方：'+seller,fontSize:7.5,bold:false,align:'left',field:'seller'});
+  }
+  if(bc)els.push({type:'barcode',x:14.7,y:24.0,w:52.8,h:14.3,content:bc,field:'barcode',format:'CODE128',fontSize:10});
+  return els;
+}
+
+function buildHengdaElements(idx){
+  const l=DATA[idx];
+  const bc=getField(l,idx,'barcode');
+  const name=getField(l,idx,'productName');
+  const net=getField(l,idx,'netContent');
+  let date=getField(l,idx,'packDate');
+  const dl=getField(l,idx,'dateLabel')||'包装日期';
+  const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+  if(topD)date=topD;
+  const origin=getField(l,idx,'origin');
+  const seller=getField(l,idx,'seller');
+  const price=getField(DATA[idx],idx,'price')||'';
+  const els=[
+    {type:'text',x:3,y:2.3,w:42,h:6.5,content:name,fontSize:10,bold:true,align:'left',field:'productName'},
+    {type:'text',x:46,y:2.3,w:11.5,h:6.5,content:price,fontSize:8.8,bold:true,align:'center',field:'price'},
+    {type:'text',x:5,y:9.7,w:23,h:4.6,content:'净含量：'+net,fontSize:7.5,bold:false,align:'left',field:'netContent'},
+    {type:'text',x:30,y:9.7,w:28,h:4.6,content:dl+'：'+date,fontSize:7.5,bold:false,align:'left',field:'packDate'},
+    {type:'text',x:5,y:14.8,w:50,h:4.8,content:'产地：'+origin,fontSize:7.5,bold:false,align:'left',field:'origin'},
+    {type:'text',x:5,y:19.8,w:52,h:5.2,content:'供应商：'+seller,fontSize:7.5,bold:false,align:'left',field:'seller'},
+  ];
+  if(bc)els.push({type:'barcode',x:14.7,y:24.0,w:52.8,h:14.3,content:bc,field:'barcode',format:'CODE128',fontSize:10});
+  return els;
+}
+
+function buildDefaultElementsForIdx(idx){
+  return isHengdaLabel(DATA[idx])?buildHengdaElements(idx):buildPreviousElements(idx);
+}
+
+// 基准标签默认布局元素(用基准标签自己的数据生成)
+function buildBaseElements(){
+  return buildPreviousElements(getBaseLayoutIdx());
+}
+// 基准标签的布局元素(优先已保存的布局，否则用生成的默认)
+function getBaseElements(){
+  const idx=getBaseLayoutIdx();
+  const saved=editorLayouts[idx];
+  if(saved){
+    if(Array.isArray(saved))return normalizeElements(JSON.parse(JSON.stringify(saved)));
+    return normalizeElements(JSON.parse(JSON.stringify(saved.elements)));
+  }
+  return normalizeElements(buildBaseElements());
+}
+// 基准标签的纸张尺寸
+function getBasePaper(){
+  const idx=getBaseLayoutIdx();
+  const saved=editorLayouts[idx];
+  if(saved&&!Array.isArray(saved))return {paperW:saved.paperW||60,paperH:saved.paperH||40};
+  return {paperW:60,paperH:40};
+}
+
+function getDefaultPaper(idx){
+  const savedOwn=getSavedLayout(idx);
+  if(savedOwn)return {paperW:savedOwn.paperW||60,paperH:savedOwn.paperH||40};
+  const savedTpl=getSavedDefaultTemplate(idx);
+  if(savedTpl)return {paperW:savedTpl.paperW||60,paperH:savedTpl.paperH||40};
+  return getBasePaper();
+}
+
+// 读取某标签的布局：自己保存过的布局优先；没有则返回null(走统一默认模板)
+function getSavedLayout(idx){
+  const saved=editorLayouts[idx];
+  if(!saved)return null;
+  let els;
+  if(Array.isArray(saved)){
+    els=JSON.parse(JSON.stringify(saved));
+    return {elements:normalizeElements(els),paperW:60,paperH:40};
+  }
+  els=JSON.parse(JSON.stringify(saved.elements));
+  return {elements:normalizeElements(els),paperW:saved.paperW||60,paperH:saved.paperH||40};
+}
+
+function getTemplateKeyForIdx(idx){
+  const l=DATA[idx]||{};
+  return isHengdaLabel(l)?'__default_template_hengda__':'__default_template_previous__';
+}
+function getTemplateNameForIdx(idx){
+  const l=DATA[idx]||{};
+  return isHengdaLabel(l)?'衡大厨':'之前的';
+}
+function getSavedDefaultTemplate(idx){
+  const saved=editorLayouts[getTemplateKeyForIdx(idx)];
+  if(!saved)return null;
+  let els;
+  if(Array.isArray(saved)){
+    els=JSON.parse(JSON.stringify(saved));
+    return {elements:normalizeElements(els),paperW:60,paperH:40};
+  }
+  els=JSON.parse(JSON.stringify(saved.elements||[]));
+  return {elements:normalizeElements(els),paperW:saved.paperW||60,paperH:saved.paperH||40};
+}
+
+// 规范化布局元素：修复历史布局中缺失的 type/field 字段
+// 有些旧布局的二维码/条码元素只有 field 没有 type(或反之)，导致画布不渲染、点击无反应
+function normalizeElements(els){
+  (els||[]).forEach(el=>{
+    if(!el)return;
+    // 二维码元素
+    if(el.field==='qr'&&!el.type)el.type='qr';
+    if(el.type==='qr'&&!el.field)el.field='qr';
+    // 统一删除二维码说明文字(只保留二维码图片)
+    if(el.type==='qr'||el.field==='qr')el.content='';
+    // 条码元素
+    if(el.field==='barcode'&&!el.type)el.type='barcode';
+    if(el.type==='barcode'&&!el.field)el.field='barcode';
+    if(el.type==='barcode'&&!el.format)el.format='CODE128';
+    // 通用默认值
+    if(el.x===undefined)el.x=0;
+    if(el.y===undefined)el.y=0;
+    if(el.w===undefined)el.w=20;
+    if(el.h===undefined)el.h=8;
+  });
+  return els;
+}
+
+function getCat(l){
+  const n=l.filename;
+  if(n.includes('湖南土菜1号'))return'湖南土菜1号';
+  if(n.includes('湖南土菜2号'))return'湖南土菜2号';
+  if(n.includes('湖南土菜3号'))return'湖南土菜3号';
+  if(n.includes('农家')&&n.includes('湖南土菜'))return'农家系列';
+  if(n.startsWith('【湖南土菜】'))return'土菜其他';
+  if(n.startsWith('湖南土农家'))return'农家系列';
+  if(n.startsWith('湖南土'))return'湖南土系列';
+  if(n.startsWith('湖南'))return'湖南其他';
+  return'其他';
+}
+function getWN(w){const m=(w||'').match(/(\d+)/);return m?parseInt(m[1]):0;}
+function getField(l,idx,field){
+  if(overrides[idx]&&overrides[idx][field]!==undefined)return overrides[idx][field];
+  return l[field];
+}
+
+function buildFilters(){
+  const hengdaCount=DATA.filter(isHengdaLabel).length;
+  const cats={all:DATA.length,'之前的':DATA.length-hengdaCount,'衡大厨':hengdaCount};
+  DATA.forEach(l=>{const c=getCat(l);cats[c]=(cats[c]||0)+1;});
+  const order=['all','之前的','衡大厨','湖南土菜1号','湖南土菜2号','湖南土菜3号','农家系列','土菜其他','湖南土系列','湖南其他','其他'];
+  const names={all:'全部'};
+  document.getElementById('filterChips').innerHTML=order.filter(k=>cats[k]).map(k=>
+    `<div class="chip ${k===curFilter?'active':''}" onclick="setFilter('${k}')">${names[k]||k}<span class="cnt">(${cats[k]})</span></div>`
+  ).join('');
+}
+function setFilter(f){curFilter=f;buildFilters();renderGrid();}
+
+function renderGrid(){
+  const search=document.getElementById('searchInput').value.toLowerCase().trim();
+  let filtered=DATA.map((l,i)=>({...l,idx:i}));
+  if(curFilter==='衡大厨')filtered=filtered.filter(isHengdaLabel);
+  else if(curFilter==='之前的')filtered=filtered.filter(l=>!isHengdaLabel(l));
+  else if(curFilter!=='all')filtered=filtered.filter(l=>getCat(l)===curFilter);
+  if(search)filtered=filtered.filter(l=>l.productName.toLowerCase().includes(search)||l.filename.toLowerCase().includes(search)||(l.weight||'').includes(search));
+  if(curSort==='name')filtered.sort((a,b)=>a.displayName.localeCompare(b.displayName,'zh-CN'));
+  else if(curSort==='weight')filtered.sort((a,b)=>getWN(a.weight)-getWN(b.weight));
+
+  const grid=document.getElementById('grid');
+  const empty=document.getElementById('emptyState');
+  if(!filtered.length){grid.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  grid.innerHTML=filtered.map(l=>{
+    const isSel=selected.has(l.idx);
+    const qty=selected.get(l.idx)||1;
+    const name=getField(l,l.idx,'productName');
+    const net=getField(l,l.idx,'netContent');
+    const date=getField(l,l.idx,'packDate');
+    const origin=getField(l,l.idx,'origin');
+    const seller=getField(l,l.idx,'seller');
+    const supplierText=getField(l,l.idx,'supplierText')||('销售方：'+seller);
+    const bc=getField(l,l.idx,'barcode');
+    const hasQR=getField(l,l.idx,'hasQR');
+    const dl=getField(l,l.idx,'dateLabel')||'包装日期';
+    const storage=getField(l,l.idx,'storage')||'';
+    const price=getField(l,l.idx,'price')||'';
+    const showPrice=isHengdaLabel(l)&&price;
+    return `
+    <div class="card ${isSel?'selected':''}" onclick="toggleSel(${l.idx})" ondblclick="openEditor(${l.idx})">
+      <div class="card-check"></div>
+      <div class="card-edit-btn" onclick="event.stopPropagation();openEdit(${l.idx})" title="编辑内容">✏️</div>
+      <div class="card-design-btn" onclick="event.stopPropagation();openEditor(${l.idx})" title="拖拽设计布局">🎨</div>
+      <div class="label-60x40 ${showPrice?'has-price':''}" id="lr-${l.idx}">
+        <div class="l40-name">${name}</div>
+        ${showPrice?`<div class="l40-price">${price}</div>`:''}
+        <div class="l40-info-row">
+          <span>净含量：${net}</span>
+          <span>${dl}：<span class="pd">${date}</span></span>
+        </div>
+        <div class="l40-mid">
+          <div class="l40-mid-left">
+            <div>产地：${origin}</div>
+            <div>${supplierText}</div>
+            ${storage?`<div>储存：${storage}</div>`:''}
+          </div>
+          ${hasQR?`<div class="l40-qr">
+            <img src="images/qr_hegezheng.png">
+            <div class="qr-text">承诺达标合格证</div>
+          </div>`:''}
+        </div>
+        ${bc?`<div class="l40-barcode">
+          <svg id="bc-${l.idx}"></svg>
+          <div class="bc-num">${bc}</div>
+        </div>`:`<div class="l40-barcode-empty"></div>`}
+      </div>
+      <div class="card-meta">
+        <div class="cm-name" title="${name}">${l.displayName}</div>
+        <div class="cm-info">
+          <span class="cm-w">${l.weight||'—'}</span>
+          <span><span class="cm-size">${getSavedLayout(l.idx)?getSavedLayout(l.idx).paperW+'×'+getSavedLayout(l.idx).paperH+'mm':'60×40mm'}</span>${hasQR?'<span class="cm-qr-badge">合格证</span>':''}${!bc?'<span class="cm-qr-badge" style="color:#999;background:#f0f0f0">无码</span>':''}${editorLayouts[l.idx]?'<span class="cm-qr-badge" style="color:#6c5ce7;background:#eee6ff">自定义</span>':''}</span>
+        </div>
+      </div>
+      ${isSel?`<div class="card-qty" onclick="event.stopPropagation()"><label>×</label><input type="number" min="1" max="999" value="${qty}" onclick="event.stopPropagation()" oninput="updQty(${l.idx},this.value)"></div>`:''}
+    </div>`;
+  }).join('');
+
+  // Generate REAL barcodes from data
+  filtered.forEach(l=>{
+    const bc=getField(l,l.idx,'barcode');
+    if(bc){
+      try{
+        JsBarcode(`#bc-${l.idx}`,bc.replace(/\.$/,''),{
+          format:'CODE128',width:1,height:20,displayValue:false,margin:0,fontSize:0
+        });
+      }catch(e){}
+    }
+  });
+  applyDateToCards();
+  updateSelAll();
+}
+
+function toggleSel(idx){
+  if(selected.has(idx))selected.delete(idx);else selected.set(idx,1);
+  renderGrid();updateBar();
+}
+function updQty(idx,v){v=Math.max(1,Math.min(999,parseInt(v)||1));selected.set(idx,v);updateBar();}
+function clearSel(){selected.clear();renderGrid();updateBar();}
+function updateBar(){
+  const bar=document.getElementById('actionBar');
+  let copies=0;selected.forEach(v=>copies+=v);
+  document.getElementById('selCount').textContent=selected.size;
+  document.getElementById('totalCopies').textContent=copies;
+  bar.classList.toggle('show',selected.size>0);
+}
+function updateSelAll(){
+  const cb=document.getElementById('selectAll');
+  const cards=document.querySelectorAll('.card');
+  const indices=Array.from(cards).map(c=>{const m=c.getAttribute('onclick').match(/toggleSel\((\d+)/);return m?parseInt(m[1]):null;}).filter(x=>x!==null);
+  const allSel=indices.length>0&&indices.every(i=>selected.has(i));
+  cb.checked=allSel;
+  cb.indeterminate=!allSel&&indices.some(i=>selected.has(i));
+}
+document.getElementById('selectAll').addEventListener('change',function(){
+  document.querySelectorAll('.card').forEach(c=>{
+    const m=c.getAttribute('onclick').match(/toggleSel\((\d+)/);
+    if(m){const idx=parseInt(m[1]);if(this.checked&&!selected.has(idx))selected.set(idx,1);else if(!this.checked&&selected.has(idx))selected.delete(idx);}
+  });
+  renderGrid();updateBar();
+});
+function applyDateToCards(){
+  const raw=document.getElementById('dateInput').value.trim();
+  if(!raw)return;
+  // Convert YYYY-MM-DD to YYYY/MM/DD for display
+  const d=raw.replace(/-/g,'/');
+  document.querySelectorAll('.label-60x40 .pd').forEach(el=>el.textContent=d);
+}
+function formatDate(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day; // date input uses YYYY-MM-DD
+}
+function setToday(){
+  document.getElementById('dateInput').value=formatDate(new Date());
+  applyDateToCards();
+}
+function adjustDate(days){
+  const cur=document.getElementById('dateInput').value.trim();
+  let base;
+  if(cur){
+    const parts=cur.split(/[-\/]/);
+    if(parts.length===3){
+      base=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+    }else{base=new Date();}
+  }else{base=new Date();}
+  base.setDate(base.getDate()+days);
+  document.getElementById('dateInput').value=formatDate(base);
+  applyDateToCards();
+}
+// 默认日期=明天(包装日期默认+1天)，"今天"按钮仍可回到今天
+(function(){
+  const d=new Date();
+  d.setDate(d.getDate()+1);
+  document.getElementById('dateInput').value=formatDate(d);
+  applyDateToCards();
+})();
+document.getElementById('dateInput').addEventListener('change',applyDateToCards);
+document.getElementById('dateInput').addEventListener('input',applyDateToCards);
+document.getElementById('searchInput').addEventListener('input',()=>{renderGrid();});
+document.getElementById('sortSelect').addEventListener('change',e=>{curSort=e.target.value;renderGrid();});
+
+// ===== Edit Modal =====
+function openEdit(idx){
+  editingIdx=idx;
+  const l=DATA[idx];
+  document.getElementById('editName').value=getField(l,idx,'productName');
+  document.getElementById('editNet').value=getField(l,idx,'netContent');
+  document.getElementById('editDate').value=getField(l,idx,'packDate');
+  document.getElementById('editOrigin').value=getField(l,idx,'origin');
+  document.getElementById('editSeller').value=getField(l,idx,'seller');
+  document.getElementById('editBarcode').value=getField(l,idx,'barcode');
+  document.getElementById('editHasQR').checked=getField(l,idx,'hasQR');
+  updatePreview();
+  document.getElementById('editOverlay').classList.add('show');
+}
+function updatePreview(){
+  const name=document.getElementById('editName').value;
+  const net=document.getElementById('editNet').value;
+  const date=document.getElementById('editDate').value;
+  const origin=document.getElementById('editOrigin').value;
+  const seller=document.getElementById('editSeller').value;
+  const bc=document.getElementById('editBarcode').value;
+  const hasQR=document.getElementById('editHasQR').checked;
+  const l=DATA[editingIdx]||{};
+  const price=getField(l,editingIdx,'price')||'';
+  const showPrice=isHengdaLabel(l)&&price;
+  const supplierText=getField(l,editingIdx,'supplierText')||('销售方：'+seller);
+  const box=document.getElementById('editPreviewBox');
+  box.innerHTML=`
+    <div class="preview-60x40 ${showPrice?'has-price':''}">
+      <div class="l40-name">${name}</div>
+      ${showPrice?`<div class="l40-price">${price}</div>`:''}
+      <div class="l40-info-row">
+        <span>净含量：${net}</span>
+        <span>包装日期：${date}</span>
+      </div>
+      <div class="l40-mid">
+        <div class="l40-mid-left">
+          <div>产地：${origin}</div>
+          <div>${supplierText}</div>
+        </div>
+        ${hasQR?`<div class="l40-qr">
+          <img src="images/qr_hegezheng.png">
+          <div class="qr-text">承诺达标合格证</div>
+        </div>`:''}
+      </div>
+      ${bc?`<div class="l40-barcode">
+        <svg id="edit-bc-preview"></svg>
+        <div class="bc-num">${bc}</div>
+      </div>`:''}
+    </div>`;
+  if(bc){
+    try{JsBarcode('#edit-bc-preview',bc.replace(/\.$/,''),{format:'CODE128',width:1.5,height:30,displayValue:false,margin:0,fontSize:0});}catch(e){}
+  }
+}
+function saveEdit(){
+  if(editingIdx<0)return;
+  if(!overrides[editingIdx])overrides[editingIdx]={};
+  overrides[editingIdx].productName=document.getElementById('editName').value;
+  overrides[editingIdx].netContent=document.getElementById('editNet').value;
+  overrides[editingIdx].packDate=document.getElementById('editDate').value;
+  overrides[editingIdx].origin=document.getElementById('editOrigin').value;
+  overrides[editingIdx].seller=document.getElementById('editSeller').value;
+  overrides[editingIdx].barcode=document.getElementById('editBarcode').value;
+  overrides[editingIdx].hasQR=document.getElementById('editHasQR').checked;
+  closeM('editOverlay');
+  renderGrid();
+}
+
+// ===== 新增模板 =====
+function openAddModal(){
+  // 默认日期=明天(包装日期默认+1天)
+  const d=new Date();
+  d.setDate(d.getDate()+1);
+  const today=formatDate(d);
+  document.getElementById('addDate').value=today;
+  document.getElementById('addOverlay').classList.add('show');
+  updateAddPreview();
+  setTimeout(function(){document.getElementById('addName').focus();},100);
+}
+function updateAddPreview(){
+  const name=document.getElementById('addName').value;
+  const net=document.getElementById('addNet').value;
+  const date=document.getElementById('addDate').value;
+  const origin=document.getElementById('addOrigin').value;
+  const seller=document.getElementById('addSeller').value;
+  const bc=document.getElementById('addBarcode').value;
+  const hasQR=document.getElementById('addHasQR').checked;
+  const box=document.getElementById('addPreviewBox');
+  if(!box)return;
+  box.innerHTML=`
+    <div class="preview-60x40">
+      <div class="l40-name">${name||'产品名称'}</div>
+      <div class="l40-info-row">
+        <span>净含量：${net||'—'}</span>
+        <span>包装日期：${date||'—'}</span>
+      </div>
+      <div class="l40-mid">
+        <div class="l40-mid-left">
+          <div>产地：${origin||'—'}</div>
+          <div>销售方：${seller||'—'}</div>
+        </div>
+        ${hasQR?`<div class="l40-qr">
+          <img src="images/qr_hegezheng.png">
+          <div class="qr-text">承诺达标合格证</div>
+        </div>`:''}
+      </div>
+      ${bc?`<div class="l40-barcode">
+        <svg id="add-bc-preview"></svg>
+        <div class="bc-num">${bc}</div>
+      </div>`:''}
+    </div>`;
+  if(bc){
+    try{JsBarcode('#add-bc-preview',bc.replace(/\.$/,''),{format:'CODE128',width:1.5,height:30,displayValue:false,margin:0,fontSize:0});}catch(e){}
+  }
+}
+function saveAddTemplate(){
+  const name=document.getElementById('addName').value.trim();
+  if(!name){alert('请填写产品名称');document.getElementById('addName').focus();return;}
+  const net=document.getElementById('addNet').value.trim();
+  const date=document.getElementById('addDate').value.trim();
+  const origin=document.getElementById('addOrigin').value.trim();
+  const seller=document.getElementById('addSeller').value.trim();
+  const bc=document.getElementById('addBarcode').value.trim();
+  const hasQR=document.getElementById('addHasQR').checked;
+  // 从净含量提取重量数字
+  let weight=net;
+  const wm=(net||'').match(/\d+(\.\d+)?\s?g/i);
+  if(wm)weight=wm[0].replace(/\s/g,'');
+  const tpl={
+    filename:name,
+    productName:name,
+    displayName:name,
+    netContent:net,
+    origin:origin,
+    seller:seller,
+    packDate:date,
+    dateLabel:'包装日期',
+    barcode:bc,
+    weight:weight||net,
+    paperW:60,
+    paperH:40,
+    hasQR:hasQR,
+    imageFile:'',
+    isCustom:true
+  };
+  try{
+    const list=JSON.parse(localStorage.getItem('labelCustomTemplates')||'[]');
+    if(!Array.isArray(list))list.length=0;
+    list.push(tpl);
+    localStorage.setItem('labelCustomTemplates',JSON.stringify(list));
+  }catch(e){}
+  // 追加到当前DATA并刷新
+  DATA.push(tpl);
+  closeM('addOverlay');
+  document.getElementById('addName').value='';
+  document.getElementById('addNet').value='';
+  document.getElementById('addBarcode').value='';
+  buildFilters();
+  renderGrid();
+  showImportToast('✅ 模板「'+name+'」已新增');
+}
+
+// ===== Print =====
+function openPrint(){
+  if(!selected.size)return;
+  // Show delivery info in print modal
+  const pdi=document.getElementById('printDeliveryInfo');
+  if(deliveryData&&curStore){
+    pdi.style.display='block';
+    pdi.innerHTML=`<div class="delivery-info" style="margin-bottom:0;"><span class="di-label">📦 配送单</span><span>门店：</span><span class="di-store">${curStore}</span></div>`;
+  }else{
+    pdi.style.display='none';
+    pdi.innerHTML='';
+  }
+  const list=document.getElementById('selList');
+  list.innerHTML='';
+  let total=0;
+  selected.forEach((qty,idx)=>{
+    const l=DATA[idx];total+=qty;
+    const name=getField(l,idx,'productName');
+    list.innerHTML+=`<div class="si-row"><span class="si-name">${name}</span><span class="si-qty">×${qty}</span><span class="si-rm" onclick="rmFromPrint(${idx})">&times;</span></div>`;
+  });
+  updatePS(total);
+  renderPrintPreview();
+  document.getElementById('printOverlay').classList.add('show');
+}
+function rmFromPrint(idx){selected.delete(idx);renderGrid();updateBar();if(!selected.size)closeM('printOverlay');else openPrint();}
+function renderPrintPreview(){
+  const grid=document.getElementById('printPreviewGrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  const d=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+  selected.forEach((qty,idx)=>{
+    const l=DATA[idx];
+    const name=getField(l,idx,'productName');
+    const net=getField(l,idx,'netContent');
+    const origin=getField(l,idx,'origin');
+    const seller=getField(l,idx,'seller');
+    const supplierText=getField(l,idx,'supplierText')||('销售方：'+seller);
+    const bc=getField(l,idx,'barcode');
+    const hasQR=getField(l,idx,'hasQR');
+    const dl=getField(l,idx,'dateLabel')||'包装日期';
+    const storage=getField(l,idx,'storage')||'';
+    const dateVal=d||getField(l,idx,'packDate')||'';
+    const price=getField(l,idx,'price')||'';
+    const showPrice=isHengdaLabel(l)&&price;
+    const cardId='pp-bc-'+idx;
+    // 二维码说明文字以布局中qr元素的内容为准(默认空=不显示文字)
+    let qrLbl='';
+    try{
+      const _saved=getSavedLayout(idx);
+      if(_saved&&_saved.elements){
+        const _qr=_saved.elements.find(e=>e.type==='qr'||e.field==='qr');
+        if(_qr&&_qr.content!==undefined)qrLbl=_qr.content;
+      }
+    }catch(e){}
+    const div=document.createElement('div');
+    div.className='preview-label'+(showPrice?' has-price':'');
+    div.innerHTML=`
+      ${showPrice?`<div class="pl-price">${price}</div>`:''}
+      <div class="pl-name">${name}</div>
+      <div class="pl-info">
+        <span>净含量：${net}</span>
+        <span>${dl}：${dateVal}</span>
+      </div>
+      <div class="pl-mid">
+        <div class="pl-mid-l">
+          <div>产地：${origin}</div>
+          <div>${supplierText}</div>
+          ${storage?`<div>储存：${storage}</div>`:''}
+        </div>
+        ${hasQR?`<div class="pl-qr">
+          <img src="images/qr_hegezheng.png">
+          <div class="qr-lbl">${qrLbl}</div>
+        </div>`:''}
+      </div>
+      ${bc?`<div class="pl-bc">
+        <svg id="${cardId}"></svg>
+        <div class="bc-n">${bc}</div>
+      </div>`:''}
+    `;
+    grid.appendChild(div);
+    if(bc){
+      setTimeout(()=>{
+        try{JsBarcode('#'+cardId,bc.replace(/\.$/,''),{format:'CODE128',width:1,height:20,displayValue:false,margin:0,fontSize:0});}catch(e){}
+      },10);
+    }
+  });
+}
+function selLayout(el,layout){
+  document.querySelectorAll('.layout-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');curLayout=layout;
+  let t=0;selected.forEach(v=>t+=v);updatePS(t);
+}
+function updatePS(total){
+  const tips=document.getElementById('printTips');
+  // A4 210x297mm, label 60x40mm, with 5mm margin -> usable 200x287mm
+  // Portrait: floor(200/60)=3 cols, floor(287/40)=7 rows = 21 per page
+  // Landscape: floor(287/60)=4 cols, floor(200/40)=5 rows = 20 per page
+  const isThermal=curLayout==='thermal';
+  const pp=isThermal?1:curLayout==='a4p'?21:curLayout==='a4l'?20:1;
+  const pages=Math.ceil(total/pp);
+
+  if(isThermal){
+    document.getElementById('printSum').innerHTML=`
+      <div class="psr"><span>标签种类</span><strong>${selected.size} 种</strong></div>
+      <div class="psr"><span>打印总张数</span><strong>${total} 张</strong></div>
+      <div class="psr"><span>每页数量</span><strong>1 张/页（逐张出纸）</strong></div>
+      <div class="psr"><span>纸张尺寸</span><strong>60mm × 40mm 热敏纸</strong></div>
+      <div class="psr"><span>无边距</span><strong>✓ 满版打印</strong></div>
+    `;
+    tips.style.display='block';
+    tips.innerHTML=`
+      <div style="margin-bottom:6px;"><strong>🔥 热敏打印机使用提示：</strong></div>
+      <div class="tip-step"><span class="tip-num">1.</span><span>点击"确认打印"后，浏览器会弹出打印对话框</span></div>
+      <div class="tip-step"><span class="tip-num">2.</span><span>在<strong>目标打印机</strong>下拉中选择你的热敏打印机</span></div>
+      <div class="tip-step"><span class="tip-num">3.</span><span>将<strong>纸张大小</strong>设为 <strong>60×40mm</strong>（或自定义尺寸 60mm×40mm）</span></div>
+      <div class="tip-step"><span class="tip-num">4.</span><span>将<strong>边距</strong>设为"无"或"0"</span></div>
+      <div class="tip-step"><span class="tip-num">5.</span><span>关闭<strong>页眉页脚</strong>，背景图形设为关闭</span></div>
+      <div class="tip-step"><span class="tip-num">6.</span><span>确认打印，热敏机将逐张出纸</span></div>
+    `;
+  }else{
+    document.getElementById('printSum').innerHTML=`
+      <div class="psr"><span>标签种类</span><strong>${selected.size} 种</strong></div>
+      <div class="psr"><span>打印总张数</span><strong>${total} 张</strong></div>
+      <div class="psr"><span>每页数量</span><strong>${pp} 张/页</strong></div>
+      <div class="psr"><span>预计用纸</span><strong>${pages} 页 A4</strong></div>
+      <div class="psr"><span>标签尺寸</span><strong>60mm × 40mm</strong></div>
+    `;
+    tips.style.display='none';
+    tips.innerHTML='';
+  }
+}
+function closeM(id){document.getElementById(id).classList.remove('show');}
+function doPrint(){
+  closeM('printOverlay');
+  const c=document.getElementById('printContainer');
+  c.innerHTML='';
+  // 关键：生成条码需要getBBox()测量实际宽度，但容器display:none时getBBox失效。
+  // 临时将容器移到屏幕外并设为透明可见，生成完条码后恢复。
+  c.style.display='block';
+  c.style.position='fixed';
+  c.style.left='-99999px';
+  c.style.top='0';
+  c.style.visibility='hidden';
+  c.style.zIndex='-1';
+  void c.offsetHeight; // 强制浏览器同步布局，确保getBBox可用
+  const isThermal=curLayout==='thermal';
+  c.className='print-container'+(curLayout==='a4l'?' landscape':'')+(isThermal?' thermal':'');
+  const d=document.getElementById('dateInput').value.trim().replace(/-/g,'/'); // YYYY-MM-DD -> YYYY/MM/DD
+  const pp=isThermal?1:curLayout==='a4p'?21:curLayout==='a4l'?20:1;
+  const list=[];
+  selected.forEach((qty,idx)=>{for(let i=0;i<qty;i++)list.push(idx);});
+
+  for(let i=0;i<list.length;i+=pp){
+    const page=document.createElement('div');
+    page.className='print-page';
+    for(let j=i;j<Math.min(i+pp,list.length);j++){
+      const idx=list[j];
+      const saved=getSavedLayout(idx);
+      const layout=saved?saved.elements:getDefaultLayout(idx);
+      const dp=getDefaultPaper(idx);
+      let pw=saved?saved.paperW:dp.paperW, ph=saved?saved.paperH:dp.paperH;
+      const l=DATA[idx];
+      const label=document.createElement('div');
+      label.className='print-label';
+      label.style.width=pw+'mm';
+      label.style.height=ph+'mm';
+      label.style.position='relative';
+      label.innerHTML='';
+
+      // 打印防御：承诺达标合格证(二维码)只渲染1个，多余的跳过
+      let qrCount=0;
+
+      layout.forEach((el,ei)=>{
+        const elDiv=document.createElement('div');
+        elDiv.style.position='absolute';
+        elDiv.style.left=el.x+'mm';
+        elDiv.style.top=el.y+'mm';
+        elDiv.style.width=el.w+'mm';
+        elDiv.style.height=el.h+'mm';
+        elDiv.style.overflow='hidden';
+
+        // 若为合格证/二维码元素且已渲染过1个，则跳过(防止打印重复)
+        if(el.type==='qr'||el.field==='qr'){
+          qrCount++;
+          if(qrCount>1)return;
+        }
+
+        let content=el.content||'';
+        // Resolve dynamic field values
+        if(el.field==='packDate'&&d){
+          const dl=getField(l,idx,'dateLabel')||'包装日期';
+          content=dl+'：'+d;
+        }else if(el.field==='packDateLabel'){
+          const dl=getField(l,idx,'dateLabel')||'包装日期';
+          content=dl+'：';
+        }else if(el.field==='packDateValue'){
+          content=d||getField(l,idx,'packDate')||'';
+        }else if(el.field==='price'){
+          content=getField(l,idx,'price')||'';
+        }else if(el.field==='printQuantity'){
+          const q=selected.get(idx)||1;
+          content=q+'份';
+        }else if(el.field==='productName'){
+          content=getField(l,idx,'productName');
+        }else if(el.field==='barcode'){
+          content=getField(l,idx,'barcode')||el.content||'';
+        }else if(el.field==='netContent'){
+          content='净含量：'+getField(l,idx,'netContent');
+        }else if(el.field==='origin'){
+          content='产地：'+getField(l,idx,'origin');
+        }else if(el.field==='seller'){
+          content=getField(l,idx,'supplierText')||('供应商：'+(getField(l,idx,'seller')||'深圳市衡大厨农产品有限公司'));
+        }else if(el.field==='qr'){
+          // 二维码说明文字以元素内容为准(用户可修改/删除)
+          content=el.content||'';
+        }
+
+        if(el.type==='text'){
+          elDiv.style.fontFamily="'Microsoft YaHei','SimHei',sans-serif";
+          elDiv.style.fontSize=(el.fontSize||6)+'pt';
+          elDiv.style.fontWeight=el.bold?'bold':'normal';
+          elDiv.style.textAlign=el.align||'center';
+          elDiv.style.display='flex';
+          elDiv.style.alignItems='center';
+          elDiv.style.wordBreak='break-all';
+          elDiv.textContent=content;
+        }else if(el.type==='barcode'){
+          elDiv.style.display='flex';
+          elDiv.style.flexDirection='column';
+          elDiv.style.alignItems='center';
+          elDiv.style.justifyContent='center';
+          const svgWrap=document.createElement('div');
+          svgWrap.style.width='100%';
+          svgWrap.style.flex='1';
+          svgWrap.style.overflow='hidden';
+          svgWrap.style.display='flex';
+          svgWrap.style.alignItems='stretch';
+          const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+          svg.style.width='100%';
+          svg.style.height='100%';
+          svg.style.display='block';
+          const numDiv=document.createElement('div');
+          numDiv.style.fontSize=(el.fontSize||4)+'pt';
+          numDiv.style.textAlign='center';
+          numDiv.style.whiteSpace='nowrap';
+          // 数字可单独左右/上下偏移(mm)，正=右/下，负=左/上
+          numDiv.style.transform='translate('+(el.numOffX||0)+'mm,'+(el.numOffY||0)+'mm)';
+          numDiv.textContent=content;
+          svgWrap.appendChild(svg);
+          elDiv.appendChild(svgWrap);
+          elDiv.appendChild(numDiv);
+          if(content){
+            // 根据元素实际宽度/高度动态计算条码宽度，让条码撑满整个元素框
+            const barcW=el.w>0?el.w:40;   // mm
+            const barcH=Math.max(4,(el.h||8)-2.5); // 预留数字高度
+            const pxW=Math.max(10,Math.round(barcW*4));  // 以4px/mm精度渲染
+            const pxH=Math.max(10,Math.round(barcH*4));
+            // CODE128总模块数=(字符数+3)*11+2，用精确模块数计算条宽
+            const modules=(content.length+3)*11+2;
+            try{
+              // 使用所选码制，失败时回退CODE128
+              const fmt=el.format||'CODE128';
+              const bw=Math.max(0.3,pxW/modules);
+              try{
+                JsBarcode(svg,content.replace(/\.$/,''),{
+                  format:fmt,width:bw,
+                  height:pxH,displayValue:false,margin:0,fontSize:0
+                });
+              }catch(ef){
+                try{JsBarcode(svg,content.replace(/\.$/,''),{format:'CODE128',width:bw,height:pxH,displayValue:false,margin:0,fontSize:0});}catch(e2){}
+              }
+              // 读取JsBarcode实际生成的宽度(纯数字会自动用CODE128C，模块数远少于公式估算)
+              const actualW=parseFloat(svg.getAttribute('width'))||(modules*bw);
+              svg.removeAttribute('width');svg.removeAttribute('height');
+              svg.setAttribute('viewBox','0 0 '+actualW+' '+pxH);
+              svg.setAttribute('preserveAspectRatio','none');
+            }catch(e){}
+          }
+        }else if(el.type==='qr'){
+          elDiv.style.display='flex';
+          elDiv.style.flexDirection='column';
+          elDiv.style.alignItems='center';
+          elDiv.style.justifyContent='center';
+          const img=document.createElement('img');
+          img.src='images/qr_hegezheng.png';
+          img.style.maxWidth='100%';
+          img.style.maxHeight='70%';
+          img.style.objectFit='contain';
+          const qrText=document.createElement('div');
+          qrText.style.fontSize='3pt';
+          qrText.style.textAlign='center';
+          qrText.style.whiteSpace='nowrap';
+          qrText.style.width='100%';
+          qrText.style.overflow='hidden';
+          qrText.textContent=content;
+          elDiv.appendChild(img);
+          elDiv.appendChild(qrText);
+        }else if(el.type==='image'){
+          elDiv.style.display='flex';
+          elDiv.style.alignItems='center';
+          elDiv.style.justifyContent='center';
+          const img=document.createElement('img');
+          img.src=el.content||'';
+          img.style.maxWidth='100%';
+          img.style.maxHeight='100%';
+          img.style.objectFit='contain';
+          elDiv.appendChild(img);
+        }
+        label.appendChild(elDiv);
+      });
+      page.appendChild(label);
+    }
+    c.appendChild(page);
+  }
+  // For thermal mode, dynamically inject @page size
+  let pageStyle=document.getElementById('dynamicPageStyle');
+  if(pageStyle)pageStyle.remove();
+  if(isThermal){
+    // 使用第一张标签的纸张尺寸(所有选中标签应尽量一致)
+    let tpw=60, tph=40;
+    selected.forEach((qty,idx)=>{
+      const s=getDefaultPaper(idx);
+      if(s){tpw=s.paperW;tph=s.paperH;}
+    });
+    pageStyle=document.createElement('style');
+    pageStyle.id='dynamicPageStyle';
+    pageStyle.textContent='@media print{@page{size:'+tpw+'mm '+tph+'mm;margin:0;}.print-container.thermal .print-page{width:'+tpw+'mm!important;height:'+tph+'mm!important;min-height:'+tph+'mm!important;}}';
+    document.head.appendChild(pageStyle);
+  }
+  // 恢复容器样式(条码viewBox已生成好)，再调用打印
+  setTimeout(()=>{
+    c.style.display='none';
+    c.style.position='';
+    c.style.left='';
+    c.style.top='';
+    c.style.visibility='';
+    c.style.zIndex='';
+    window.print();
+  },300);
+}
+
+// Init
+document.getElementById('totalCount').textContent=DATA.length;
+buildFilters();
+renderGrid();
+
+// ===== Drag Editor =====
+// (vars declared at top of script)
+
+function getDefaultLayout(idx){
+  const savedOwn=getSavedLayout(idx);
+  if(savedOwn)return savedOwn.elements;
+  const savedTpl=getSavedDefaultTemplate(idx);
+  if(savedTpl){
+    const els=JSON.parse(JSON.stringify(savedTpl.elements));
+    fillElementData(els,idx);
+    return normalizeElements(els);
+  }
+  return normalizeElements(buildDefaultElementsForIdx(idx));
+}
+
+// 只填充动态字段（包装日期、打印数量），保留用户编辑的静态内容
+// 用于已保存的布局：用户修改的产品名/净含量/产地等不会被覆盖
+function fillDynamicData(els, idx){
+  const l=DATA[idx];
+  if(!l)return;
+  (els||[]).forEach(el=>{
+    if(!el||!el.field)return;
+    const f=el.field;
+    try{
+      if(f==='packDate'){
+        const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+        const dl=getField(l,idx,'dateLabel')||'包装日期';
+        const dv=topD||getField(l,idx,'packDate')||'';
+        el.content=dl+'：'+dv;
+      }else if(f==='packDateValue'){
+        const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+        el.content=topD||getField(l,idx,'packDate')||'';
+      }else if(f==='printQuantity'){
+        el.content=(selected.get(idx)||1)+'份';
+      }else if(f==='barcode'){
+        el.content=getField(l,idx,'barcode')||el.content||'';
+      }else if(f==='qr'){
+        el.content='';
+      }
+    }catch(e){}
+  });
+}
+
+// 用当前标签的数据填充布局元素内容(field对应字段)
+// 布局统一了位置大小，但每个标签显示各自的产品名/净含量/日期/产地/销售方/条码
+function fillElementData(els, idx){
+  const l=DATA[idx];
+  if(!l)return;
+  (els||[]).forEach(el=>{
+    if(!el||!el.field)return;
+    const f=el.field;
+    try{
+      if(f==='productName'){
+        el.content=getField(l,idx,'productName')||el.content||'';
+      }else if(f==='netContent'){
+        el.content='净含量：'+getField(l,idx,'netContent');
+      }else if(f==='packDate'){
+        const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+        const dl=getField(l,idx,'dateLabel')||'包装日期';
+        const dv=topD||getField(l,idx,'packDate')||'';
+        el.content=dl+'：'+dv;
+      }else if(f==='packDateLabel'){
+        const dl=getField(l,idx,'dateLabel')||'包装日期';
+        el.content=dl+'：';
+      }else if(f==='packDateValue'){
+        const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+        el.content=topD||getField(l,idx,'packDate')||'';
+      }else if(f==='price'){
+        el.content=getField(l,idx,'price')||'';
+      }else if(f==='printQuantity'){
+        el.content=(selected.get(idx)||1)+'份';
+      }else if(f==='origin'){
+        el.content='产地：'+getField(l,idx,'origin');
+      }else if(f==='seller'){
+        el.content=getField(l,idx,'supplierText')||('供应商：'+(getField(l,idx,'seller')||'深圳市衡大厨农产品有限公司'));
+      }else if(f==='barcode'){
+        el.content=getField(l,idx,'barcode')||el.content||'';
+      }else if(f==='qr'){
+        el.content=''; // 二维码说明文字统一删除
+      }
+    }catch(e){}
+  });
+}
+
+function openEditor(idx){
+  editorIdx=idx;
+  const l=DATA[idx];
+  document.getElementById('editorLabelName').textContent=l.displayName;
+  // Load saved layout (含纸张尺寸) or generate default
+  const saved=getSavedLayout(idx);
+  if(saved){
+    editorElements=saved.elements;
+    editorPaperW=saved.paperW;
+    editorPaperH=saved.paperH;
+  }else{
+    editorElements=getDefaultLayout(idx);
+    const bp=getDefaultPaper(idx);
+    editorPaperW=bp.paperW; editorPaperH=bp.paperH;
+  }
+  // ===== 关键：已保存布局只更新动态字段，新布局填充全部数据 =====
+  if(saved){
+    fillDynamicData(editorElements, idx);
+  }else{
+    fillElementData(editorElements, idx);
+  }
+  document.getElementById('paperW').value=editorPaperW;
+  document.getElementById('paperH').value=editorPaperH;
+  document.getElementById('editorPaperLabel').textContent='('+editorPaperW+'×'+editorPaperH+'mm)';
+  editorSelected=-1;
+
+  // ===== 自动去重：承诺达标合格证(二维码)只保留1个 =====
+  // 有些历史布局/误操作会有2个qr元素叠在一起，画布看不出来但打印会出2个
+  const qrIdx=[];
+  editorElements.forEach((el,i)=>{
+    if(el.type==='qr'||el.field==='qr')qrIdx.push(i);
+  });
+  if(qrIdx.length>1){
+    // 保留第1个(画布左上角顺序)，删除其余
+    for(let k=qrIdx.length-1;k>=1;k--){
+      editorElements.splice(qrIdx[k],1);
+    }
+    // 提示用户（等渲染完再弹，避免阻塞）
+    setTimeout(()=>{
+      alert('⚠️ 检测到 '+qrIdx.length+' 个"承诺达标合格证"（二维码）元素重叠在一起。\n已自动保留 1 个，其余已删除。\n\n这样打印出来就只有一个合格证了。');
+    },300);
+  }
+
+  document.getElementById('editorOverlay').classList.add('show');
+  fitEditorCanvas();
+  renderCanvas();
+  renderProps();
+  renderElementList();
+  checkOverflow();
+}
+
+// 应用纸张尺寸修改
+function applyPaperSize(){
+  let w=parseFloat(document.getElementById('paperW').value);
+  let h=parseFloat(document.getElementById('paperH').value);
+  if(!w||isNaN(w))w=60;
+  if(!h||isNaN(h))h=40;
+  w=Math.max(20,Math.min(200,w));
+  h=Math.max(20,Math.min(200,h));
+  document.getElementById('paperW').value=w;
+  document.getElementById('paperH').value=h;
+  editorPaperW=w; editorPaperH=h;
+  document.getElementById('editorPaperLabel').textContent='('+w+'×'+h+'mm)';
+  fitEditorCanvas();
+  renderCanvas();
+  renderProps();
+  checkOverflow();
+}
+
+// 检查是否有元素超出画布(纸张)边界，返回超界元素列表并显示提示
+function checkOverflow(){
+  const tip=document.getElementById('overflowTip');
+  if(editorSelected===-2){tip.style.display='none';return[];} // 未打开编辑器时跳过
+  const overflow=editorElements.filter(el=>{
+    return el.x<0||el.y<0||el.x+el.w>editorPaperW||el.y+el.h>editorPaperH;
+  });
+  if(overflow.length){
+    const names=overflow.map((el,i)=>'「'+(el.content||el.type||'元素')+'」').join('、');
+    tip.style.display='flex';
+    tip.innerHTML=`<span class="ot-count">${overflow.length}</span><span>⚠️ 以下元素超出纸张(${editorPaperW}×${editorPaperH}mm)范围：${names}。请拖回画布内或缩小尺寸，保存时会被检查。</span>`;
+  }else{
+    tip.style.display='none';
+  }
+  return overflow;
+}
+
+// 让画布在电脑屏幕上尽量放大：按窗口可用空间自动计算缩放倍数
+function fitEditorCanvas(){
+  const center=document.querySelector('.editor-center');
+  const availW=Math.max(360,center.clientWidth-80); // 留出左右边距
+  const availH=Math.max(240,center.clientHeight-80); // 留出上下边距
+  // 按纸张比例取能放下的最大倍数，并保证至少 3x
+  EDITOR_SCALE=Math.max(3,Math.floor(Math.min(availW/editorPaperW,availH/editorPaperH)));
+  const cw=editorPaperW*EDITOR_SCALE, ch=editorPaperH*EDITOR_SCALE;
+  const canvas=document.getElementById('editorCanvas');
+  canvas.style.width=cw+'px';
+  canvas.style.height=ch+'px';
+  canvas.style.backgroundSize=EDITOR_SCALE+'px '+EDITOR_SCALE+'px'; // 1mm一格
+  document.getElementById('rulerH').style.width=cw+'px';
+  document.getElementById('rulerV').style.height=ch+'px';
+  const info=canvas.querySelector('.canvas-info');
+  if(info)info.textContent=editorPaperW+'mm × '+editorPaperH+'mm';
+}
+// 编辑过程中调整浏览器窗口大小，自动重新放大画布
+window.addEventListener('resize',function(){
+  if(document.getElementById('editorOverlay').classList.contains('show')){
+    fitEditorCanvas();
+    renderCanvas();
+  }
+});
+
+function closeEditor(){
+  // 退出时自动保存当前标签自己的布局(仅影响该标签)
+  if(editorIdx>=0){
+    saveCurrentLayout();
+    if(!overrides[editorIdx])overrides[editorIdx]={};
+    overrides[editorIdx].customLayout=true;
+    renderGrid();
+  }
+  document.getElementById('editorOverlay').classList.remove('show');
+  editorIdx=-1;
+}
+
+// 把当前编辑器的布局保存到当前标签名下(仅该标签生效)
+function saveCurrentLayout(){
+  editorLayouts[editorIdx]={paperW:editorPaperW,paperH:editorPaperH,elements:JSON.parse(JSON.stringify(editorElements))};
+  try{localStorage.setItem(LAYOUT_STORAGE_KEY,JSON.stringify(editorLayouts));}catch(e){}
+}
+
+function saveCurrentAsDefaultTemplate(){
+  const key=getTemplateKeyForIdx(editorIdx);
+  editorLayouts[key]={paperW:editorPaperW,paperH:editorPaperH,elements:JSON.parse(JSON.stringify(editorElements))};
+  try{localStorage.setItem(LAYOUT_STORAGE_KEY,JSON.stringify(editorLayouts));}catch(e){}
+}
+
+function editorReset(){
+  if(editorIdx<0)return;
+  // 恢复默认：删除当前标签自己保存的布局，回到统一默认模板
+  delete editorLayouts[editorIdx];
+  editorElements=getDefaultLayout(editorIdx);
+  const bp=getDefaultPaper(editorIdx);
+  editorPaperW=bp.paperW; editorPaperH=bp.paperH;
+  document.getElementById('paperW').value=editorPaperW;
+  document.getElementById('paperH').value=editorPaperH;
+  document.getElementById('editorPaperLabel').textContent='('+editorPaperW+'×'+editorPaperH+'mm)';
+  editorSelected=-1;
+  renderCanvas();renderProps();renderElementList();
+  checkOverflow();
+}
+
+function editorSave(){
+  if(editorIdx<0)return;
+  // 保存前检查超界元素
+  const overflow=checkOverflow();
+  if(overflow.length){
+    const names=overflow.map(el=>'「'+(el.content||el.type||'元素')+'」').join('、');
+    if(!confirm(`⚠️ 有 ${overflow.length} 个元素超出纸张(${editorPaperW}×${editorPaperH}mm)范围：\n${names}\n\n超出部分打印时会显示不出来。\n仍要保存吗？`)){
+      return;
+    }
+  }
+  // 保存到当前标签名下，同时设为当前类别的新默认模板
+  saveCurrentLayout();
+  saveCurrentAsDefaultTemplate();
+  if(!overrides[editorIdx])overrides[editorIdx]={};
+  overrides[editorIdx].customLayout=true;
+  renderGrid();
+  alert(getTemplateNameForIdx(editorIdx)+'模板已保存为新的默认布局！(纸张 '+editorPaperW+'×'+editorPaperH+'mm)');
+}
+
+// 从编辑器直接打印预览当前标签
+function editorPrintNow(){
+  if(editorIdx<0)return;
+  const printIdx=editorIdx;
+  // 保存当前标签自己的布局
+  saveCurrentLayout();
+  if(!overrides[printIdx])overrides[printIdx]={};
+  overrides[printIdx].customLayout=true;
+  renderGrid();
+  // 关闭编辑器
+  document.getElementById('editorOverlay').classList.remove('show');
+  editorIdx=-1;
+  // 选中当前标签打印
+  selected.clear();
+  selected.set(printIdx,1);
+  updateBar();
+  openPrint();
+}
+
+function editorAddEl(type){
+  // 未打开编辑器时忽略
+  if(editorIdx<0||!document.getElementById('editorOverlay').classList.contains('show')){
+    alert('请先打开标签设计编辑器，再添加元素');
+    return;
+  }
+  // 新元素默认放在下半部分(y≥18)，保持上半留白
+  let newEl={type:type,x:15,y:20,w:30,h:8,content:'',fontSize:6,bold:false,align:'center'};
+  if(type==='text'){
+    newEl.content='新文本';
+  }else if(type==='barcode'){
+    let bcVal='0000000000000';
+    try{
+      if(DATA[editorIdx])bcVal=getField(DATA[editorIdx],editorIdx,'barcode')||bcVal;
+    }catch(e){}
+    newEl={type:'barcode',x:10,y:30,w:40,h:8,content:bcVal,fontSize:4,format:'CODE128',field:'barcode'};
+  }else if(type==='qr'){
+    newEl={type:'qr',x:40,y:18,w:15,h:15,content:'',field:'qr'};
+  }
+  editorElements.push(newEl);
+  editorSelected=editorElements.length-1;
+  renderCanvas();renderProps();renderElementList();
+  // 提示用户已添加成功
+  const names={text:'文本',barcode:'条形码',qr:'二维码'};
+  const tip=document.createElement('div');
+  tip.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2d8c3c;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 16px rgba(45,140,60,.35);';
+  tip.textContent='✅ 已添加'+(names[type]||'元素')+'，请在画布中调整位置';
+  document.body.appendChild(tip);
+  setTimeout(()=>tip.remove(),1800);
+}
+
+function handleEditorImageUpload(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const newEl={type:'image',x:15,y:10,w:20,h:15,content:ev.target.result,fontSize:4};
+    editorElements.push(newEl);
+    editorSelected=editorElements.length-1;
+    renderCanvas();renderProps();renderElementList();
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+function replaceEditorImage(e){
+  const file=e.target.files[0];
+  if(!file||editorSelected<0)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    editorElements[editorSelected].content=ev.target.result;
+    renderCanvas();renderProps();
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+function editorDelete(){
+  if(editorSelected<0)return;
+  if(editorMultiSel.size>1){
+    // 多选删除：倒序删除所有选中元素
+    const ids=[...editorMultiSel].sort((a,b)=>b-a);
+    ids.forEach(id=>editorElements.splice(id,1));
+    editorMultiSel.clear();
+    editorSelected=-1;
+  }else{
+    editorElements.splice(editorSelected,1);
+    editorMultiSel.clear();
+    editorSelected=-1;
+  }
+  renderCanvas();renderProps();renderElementList();
+}
+
+function editorDuplicate(){
+  if(editorSelected<0)return;
+  const el=JSON.parse(JSON.stringify(editorElements[editorSelected]));
+  el.x+=3;el.y+=3;
+  editorElements.push(el);
+  editorSelected=editorElements.length-1;
+  renderCanvas();renderProps();renderElementList();
+}
+
+function editorAlign(dir){
+  if(editorSelected<0)return;
+  // 对齐操作支持多选(以主选中元素为基准)
+  const ids=editorMultiSel.size>1?[...editorMultiSel]:[editorSelected];
+  if(ids.length===1){
+    const el=editorElements[editorSelected];
+    if(dir==='center')el.x=(editorPaperW-el.w)/2;
+    else if(dir==='top')el.y=1;
+    else if(dir==='bottom')el.y=editorPaperH-el.h-1;
+  }else{
+    const base=editorElements[editorSelected];
+    if(dir==='top'){
+      ids.forEach(id=>{editorElements[id].y=base.y;});
+    }else if(dir==='bottom'){
+      ids.forEach(id=>{editorElements[id].y=base.y+base.h-editorElements[id].h;});
+    }else if(dir==='center'){
+      // 垂直居中：以所有选中元素整体为基准水平居中
+      let minX=999,maxR=0;
+      ids.forEach(id=>{const e=editorElements[id];minX=Math.min(minX,e.x);maxR=Math.max(maxR,e.x+e.w);});
+      const totalW=maxR-minX;
+      const offset=(editorPaperW-totalW)/2-minX;
+      ids.forEach(id=>{editorElements[id].x+=offset;});
+    }
+  }
+  renderCanvas();renderProps();
+}
+
+function editorNudge(dir){
+  if(editorSelected<0)return;
+  const ids=editorMultiSel.size>1?[...editorMultiSel]:[editorSelected];
+  ids.forEach(idx=>{
+    const el=editorElements[idx];
+    // 允许超出画布边界(最多100mm)，打印时超出部分会被裁掉
+    if(dir==='left')el.x=Math.max(-100,el.x-1);
+    else if(dir==='right')el.x=el.x+1;
+    else if(dir==='up')el.y=Math.max(-100,el.y-1);
+    else if(dir==='down')el.y=el.y+1;
+  });
+  renderCanvas();renderProps();
+}
+
+function selectElement(i){
+  // Ctrl+点击：切换多选；普通点击：单选
+  if(event&&event.ctrlKey){
+    if(editorMultiSel.has(i)){
+      editorMultiSel.delete(i);
+      // 若取消的是当前主选中，主选中改为多选里最后一个
+      if(editorSelected===i){
+        editorSelected=editorMultiSel.size?[...editorMultiSel][editorMultiSel.size-1]:-1;
+      }
+    }else{
+      editorMultiSel.add(i);
+      editorSelected=i;
+    }
+  }else{
+    editorMultiSel.clear();
+    editorMultiSel.add(i);
+    editorSelected=i;
+  }
+  renderCanvas();renderProps();renderElementList();
+}
+
+function renderCanvas(){
+  const canvas=document.getElementById('editorCanvas');
+  canvas.innerHTML='<div class="canvas-info">'+editorPaperW+'mm × '+editorPaperH+'mm</div>';
+  editorElements.forEach((el,i)=>{
+    const div=document.createElement('div');
+    const isOver=el.x<0||el.y<0||el.x+el.w>editorPaperW||el.y+el.h>editorPaperH;
+    const isSel=editorSelected===i;
+    const isMulti=editorMultiSel.has(i);
+    // 多选时所有选中元素显示蓝色边框，主选中(最后点的)显示实心+控制点
+    let cls='canvas-label';
+    if(isSel)cls+=' selected';
+    else if(isMulti)cls+=' multi-selected';
+    if(isOver)cls+=' overflow';
+    div.className=cls;
+    div.style.left=(el.x*EDITOR_SCALE)+'px';
+    div.style.top=(el.y*EDITOR_SCALE)+'px';
+    div.style.width=(el.w*EDITOR_SCALE)+'px';
+    div.style.height=(el.h*EDITOR_SCALE)+'px';
+    
+    let inner='';
+    if(el.type==='text'){
+      // 实际打印:60mm≈170pt,画布=60*SCALE px → 1pt≈SCALE*0.35px,与打印1:1显示
+      const fs=el.fontSize*EDITOR_SCALE*0.35;
+      let txt=el.content||'';
+      // 包装日期元素跟随顶部日期实时显示
+      if(el.field==='packDate'){
+        const topD=document.getElementById('dateInput').value.trim().replace(/-/g,'/');
+        if(topD){
+          const dl=getField(DATA[editorIdx],editorIdx,'dateLabel')||'包装日期';
+          txt=dl+'：'+topD;
+        }
+      }
+      inner=`<div class="cl-text" style="font-size:${fs}px;font-weight:${el.bold?'bold':'normal'};text-align:${el.align||'center'}">${txt}</div>`;
+    }else if(el.type==='barcode'){
+      inner=`<div class="cl-barcode"><div class="bc-svg-wrap"><svg id="ec-bc-${i}"></svg></div><div class="bc-num" style="font-size:${(el.fontSize||4)*EDITOR_SCALE*0.35}px;transform:translate(${(el.numOffX||0)*EDITOR_SCALE}px,${(el.numOffY||0)*EDITOR_SCALE}px)">${el.content}</div></div>`;
+    }else if(el.type==='qr'){
+      inner=`<div class="cl-qr"><img src="images/qr_hegezheng.png"><div class="qr-text" style="font-size:${3*EDITOR_SCALE*0.35}px">${el.content||''}</div></div>`;
+    }else if(el.type==='image'){
+      inner=`<div class="cl-image"><img src="${el.content||''}" style="width:100%;height:100%;object-fit:contain;"></div>`;
+    }
+    div.innerHTML=`<div class="cl-content">${inner}</div>`;
+    
+    if(i===editorSelected){
+      ['nw','n','ne','e','se','s','sw','w'].forEach(h=>{
+        const handle=document.createElement('div');
+        handle.className='cl-handle '+h;
+        div.appendChild(handle);
+      });
+    }
+    
+    // 点击元素：选中它并阻止冒泡(避免触发画布空白取消选中)
+    div.addEventListener('mousedown',e=>startDrag(e,i));
+    div.addEventListener('click',e=>e.stopPropagation());
+    canvas.appendChild(div);
+  });
+  
+  // Render barcodes
+  editorElements.forEach((el,i)=>{
+    if(el.type==='barcode'&&el.content){
+      try{
+        // 画布内条码也撑满元素宽度(与打印一致)
+        const barcW=el.w>0?el.w:40;
+        const barcH=Math.max(4,(el.h||8)-2.5);
+        const pxW=Math.max(10,Math.round(barcW*EDITOR_SCALE));
+        const pxH=Math.max(10,Math.round(barcH*EDITOR_SCALE));
+        // CODE128总模块数=(字符数+3)*11+2，精确计算条宽
+        const modules=(el.content.length+3)*11+2;
+        const svg=document.querySelector('#ec-bc-'+i);
+        if(svg){
+          // 使用所选码制，失败时回退CODE128
+          const fmt=el.format||'CODE128';
+          const bw=Math.max(0.3,pxW/modules);
+          try{
+            JsBarcode(svg,el.content.replace(/\.$/,''),{format:fmt,width:bw,height:pxH,displayValue:false,margin:0,fontSize:0});
+          }catch(e){
+            try{JsBarcode(svg,el.content.replace(/\.$/,''),{format:'CODE128',width:bw,height:pxH,displayValue:false,margin:0,fontSize:0});}catch(e2){}
+          }
+          // 读取JsBarcode实际生成的宽度(纯数字会自动用CODE128C，模块数远少于公式估算)
+          const actualW=parseFloat(svg.getAttribute('width'))||(modules*bw);
+          svg.removeAttribute('width');svg.removeAttribute('height');
+          svg.setAttribute('viewBox','0 0 '+actualW+' '+pxH);
+          svg.setAttribute('preserveAspectRatio','none');
+        }
+      }catch(e){}
+    }
+  });
+}
+
+function renderProps(){
+  const empty=document.getElementById('erEmpty');
+  const props=document.getElementById('erProps');
+  if(editorSelected<0){
+    empty.style.display='block';
+    props.style.display='none';
+    return;
+  }
+  empty.style.display='none';
+  props.style.display='block';
+  const el=editorElements[editorSelected];
+  const isMulti=editorMultiSel.size>1;
+  // 多选模式：只显示可批量调整的属性(字号/宽/高/加粗等)
+  let html='';
+  if(isMulti){
+    html+=`<div class="er-field" style="background:#2d3a2d;padding:8px 12px;border-radius:6px;color:#8bc34a;font-size:13px;border:1px solid #3a4a3a;">✓ 已选 ${editorMultiSel.size} 个元素，以下修改将应用到全部</div>`;
+    // 字号(仅当全部是文本时显示)
+    const allText=[...editorMultiSel].every(i=>editorElements[i].type==='text');
+    if(allText){
+      html+=`<div class="er-field-row"><div class="er-field"><label>统一字号(pt)</label><input type="number" min="3" max="20" value="${el.fontSize||6}" oninput="updateElPropMulti('fontSize',parseFloat(this.value))"></div>`;
+      html+=`<div class="er-field"><label>统一加粗</label><select onchange="updateElPropMulti('bold',this.value==='true')"><option value="false" ${!el.bold?'selected':''}>正常</option><option value="true" ${el.bold?'selected':''}>加粗</option></select></div></div>`;
+    }
+    html+=`<div class="er-field-row"><div class="er-field"><label>统一宽(mm)</label><input type="number" step="0.5" min="3" max="${editorPaperW}" value="${el.w.toFixed(1)}" oninput="updateElPropMulti('w',parseFloat(this.value))"></div>`;
+    html+=`<div class="er-field"><label>统一高(mm)</label><input type="number" step="0.5" min="3" max="${editorPaperH}" value="${el.h.toFixed(1)}" oninput="updateElPropMulti('h',parseFloat(this.value))"></div></div>`;
+    html+=`<div class="er-field"><label class="er-btn" style="text-align:center;cursor:pointer;display:block;" onclick="editorAlign('top')">⬆ 顶对齐</label></div>`;
+    html+=`<div class="er-field"><label class="er-btn" style="text-align:center;cursor:pointer;display:block;" onclick="editorAlign('bottom')">⬇ 底对齐</label></div>`;
+    html+=`<div class="er-field"><label class="er-btn" style="text-align:center;cursor:pointer;display:block;" onclick="editorAlign('center')">↔ 水平居中(整体)</label></div>`;
+    props.innerHTML=html;
+    return;
+  }
+
+  html='<div class="er-field"><label>类型</label><input type="text" value="'+({text:'文本',barcode:'条码',qr:'二维码',image:'图片'}[el.type])+'" disabled></div>';
+
+  if(el.type==='text'){
+    html+=`<div class="er-field"><label>内容</label><textarea rows="2" oninput="updateElProp('content',this.value)">${el.content||''}</textarea></div>`;
+    html+=`<div class="er-field-row"><div class="er-field"><label>字号(pt)</label><input type="number" min="3" max="20" value="${el.fontSize||6}" oninput="updateElProp('fontSize',parseFloat(this.value))"></div>`;
+    html+=`<div class="er-field"><label>对齐</label><select onchange="updateElProp('align',this.value)"><option value="left" ${el.align==='left'?'selected':''}>左对齐</option><option value="center" ${(!el.align||el.align==='center')?'selected':''}>居中</option><option value="right" ${el.align==='right'?'selected':''}>右对齐</option></select></div></div>`;
+    html+=`<div class="er-field"><label><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProp('bold',this.checked)"> 加粗</label></div>`;
+  }else if(el.type==='barcode'){
+    html+=`<div class="er-field"><label>条码内容</label><input type="text" value="${el.content||''}" oninput="updateElProp('content',this.value)"></div>`;
+    // 码制选择
+    const fmts=['CODE128','CODE39','EAN13','EAN8','UPCA','UPCE','ITF14','Pharmacode'];
+    const fmtNames={'CODE128':'Code 128','CODE39':'Code 39','EAN13':'EAN-13','EAN8':'EAN-8','UPCA':'UPC-A','UPCE':'UPC-E','ITF14':'ITF-14','Pharmacode':'Pharmacode'};
+    html+=`<div class="er-field"><label>码制</label><select onchange="updateElProp('format',this.value)">${fmts.map(f=>`<option value="${f}" ${(el.format||'CODE128')===f?'selected':''}>${fmtNames[f]||f}</option>`).join('')}</select></div>`;
+    html+=`<div class="er-field"><label>条码下方文字大小</label><input type="number" min="3" max="10" value="${el.fontSize||4}" oninput="updateElProp('fontSize',parseFloat(this.value))"></div>`;
+    // 数字位置偏移：可单独左右/上下移动条码下方的数字
+    html+=`<div class="er-field-row"><div class="er-field"><label>数字左右偏移(mm)</label><input type="number" step="0.5" min="-20" max="20" value="${el.numOffX||0}" oninput="updateElProp('numOffX',parseFloat(this.value))"></div>`;
+    html+=`<div class="er-field"><label>数字上下偏移(mm)</label><input type="number" step="0.5" min="-10" max="10" value="${el.numOffY||0}" oninput="updateElProp('numOffY',parseFloat(this.value))"></div></div>`;
+    html+=`<div class="er-field" style="color:#888;font-size:11px;">💡 偏移为正：数字向右/向下移动；为负：向左/向上。0=紧贴条码下方居中。</div>`;
+    html+=`<div class="er-field" style="color:#888;font-size:11px;">💡 提示：EAN/UPC/ITF 对数字位数有固定要求，内容不符合时会自动回退显示。</div>`;
+  }else if(el.type==='qr'){
+    html+=`<div class="er-field"><label>二维码说明文字</label><input type="text" value="${el.content||''}" oninput="updateElProp('content',this.value)"></div>`;
+  }else if(el.type==='image'){
+    html+=`<div class="er-field"><label>图片预览</label><div style="background:#fff;border-radius:4px;padding:4px;text-align:center;"><img src="${el.content||''}" style="max-width:100%;max-height:60px;object-fit:contain;"></div></div>`;
+    html+=`<div class="er-field"><label class="btn btn-outline" style="display:block;text-align:center;cursor:pointer;padding:6px;font-size:11px;">更换图片<input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="replaceEditorImage(event)"></label></div>`;
+  }
+
+  html+=`<div class="er-field-row"><div class="er-field"><label>X(mm)</label><input type="number" step="0.5" min="-100" max="300" value="${el.x.toFixed(1)}" data-prop="x" oninput="updateElProp('x',parseFloat(this.value))"></div>`;
+  html+=`<div class="er-field"><label>Y(mm)</label><input type="number" step="0.5" min="-100" max="300" value="${el.y.toFixed(1)}" data-prop="y" oninput="updateElProp('y',parseFloat(this.value))"></div></div>`;
+  html+=`<div class="er-field-row"><div class="er-field"><label>宽(mm)</label><input type="number" step="0.5" min="3" max="${editorPaperW}" value="${el.w.toFixed(1)}" data-prop="w" oninput="updateElProp('w',parseFloat(this.value))"></div>`;
+  html+=`<div class="er-field"><label>高(mm)</label><input type="number" step="0.5" min="3" max="${editorPaperH}" value="${el.h.toFixed(1)}" data-prop="h" oninput="updateElProp('h',parseFloat(this.value))"></div></div>`;
+
+  props.innerHTML=html;
+}
+
+function renderElementList(){
+  const list=document.getElementById('erElementList');
+  if(!editorElements.length){list.innerHTML='<div style="color:#666;font-size:11px;padding:8px;">无元素</div>';return;}
+  const icons={text:'📝',barcode:'📊',qr:'📱',image:'🖼️'};
+  list.innerHTML=editorElements.map((el,i)=>{
+    const cls=i===editorSelected?'active':(editorMultiSel.has(i)?'multi':'');
+    return `<div class="er-el-item ${cls}" onclick="selectElement(${i})"><span class="el-type">${icons[el.type]||'?'}</span><span class="el-label">${el.content||el.type}</span></div>`;
+  }).join('');
+}
+
+function updateElProp(prop,val){
+  if(editorSelected<0)return;
+  // 数字属性防NaN：用户清空输入框时parseFloat返回NaN，此时不更新
+  if(['x','y','w','h','fontSize','numOffX','numOffY'].includes(prop)&&isNaN(val))return;
+  editorElements[editorSelected][prop]=val;
+  renderCanvas();
+  if(prop==='type')renderProps();
+}
+
+// 多选批量修改属性(应用到所有选中元素)
+function updateElPropMulti(prop,val){
+  if(editorSelected<0)return;
+  if(['x','y','w','h','fontSize','numOffX','numOffY'].includes(prop)&&isNaN(val))return;
+  editorMultiSel.forEach(idx=>{
+    editorElements[idx][prop]=val;
+  });
+  renderCanvas();
+}
+
+function startDrag(e,i){
+  e.preventDefault();
+  e.stopPropagation();
+  // 点击元素时，如果没按住Ctrl且该元素不在多选集合里，则重置为单选
+  if(!e.ctrlKey&&!editorMultiSel.has(i)){
+    editorMultiSel.clear();
+    editorMultiSel.add(i);
+  }else if(!e.ctrlKey&&editorMultiSel.has(i)){
+    // 已在多选集合中，保持多选一起拖动
+  }else if(e.ctrlKey){
+    // Ctrl+拖拽：把点击的元素加入多选
+    editorMultiSel.add(i);
+  }
+  editorSelected=i;
+  renderCanvas();renderProps();renderElementList();
+
+  const canvas=document.getElementById('editorCanvas');
+  const rect=canvas.getBoundingClientRect();
+  const el=editorElements[i];
+  const startX=e.clientX, startY=e.clientY;
+  const origX=el.x, origY=el.y, origW=el.w, origH=el.h;
+
+  // 记录所有被选中元素的初始位置(用于多选一起拖动)
+  const groupOrig=[];
+  editorMultiSel.forEach(idx=>{
+    groupOrig.push({idx:idx,x:editorElements[idx].x,y:editorElements[idx].y});
+  });
+
+  // Check if clicking a resize handle
+  const target=e.target;
+  const isHandle=target.classList.contains('cl-handle');
+  const dirs=['nw','n','ne','e','se','s','sw','w'];
+  const handleDir=isHandle?(dirs.find(d=>target.classList.contains(d))||null):null;
+
+  editorDragInfo={startX,startY,origX,origY,origW,origH,handleDir,rect,groupOrig};
+}
+
+document.addEventListener('mousemove',e=>{
+  if(!editorDragInfo)return;
+  const {startX,startY,origX,origY,origW,origH,handleDir,rect,groupOrig}=editorDragInfo;
+  const dx=(e.clientX-startX)/EDITOR_SCALE;
+  const dy=(e.clientY-startY)/EDITOR_SCALE;
+  const el=editorElements[editorSelected];
+
+  if(handleDir){
+    // Resize (仅主选中元素，允许超出画布)
+    if(handleDir.includes('e'))el.w=Math.max(3,origW+dx);
+    if(handleDir.includes('s'))el.h=Math.max(3,origH+dy);
+    if(handleDir.includes('w')){const nx=Math.max(-100,origX+dx);el.w=Math.max(3,origW-(nx-origX));el.x=nx;}
+    if(handleDir.includes('n')){const ny=Math.max(-100,origY+dy);el.h=Math.max(3,origH-(ny-origY));el.y=ny;}
+  }else{
+    // 移动：多选时所有元素一起动；单选时带对齐吸附
+    if(groupOrig&&groupOrig.length>1){
+      // ===== 多选一起拖动 =====
+      groupOrig.forEach(g=>{
+        const e2=editorElements[g.idx];
+        // 允许超出画布边界(最多100mm)
+        e2.x=Math.max(-100,g.x+dx);
+        e2.y=Math.max(-100,g.y+dy);
+      });
+    }else{
+      // ===== 单选：对齐吸附(允许拖出画布，最多超出100mm) =====
+      // 临时计算目标位置(含吸附)
+      let tx=Math.max(-100,origX+dx);
+      let ty=Math.max(-100,origY+dy);
+      // 吸附阈值(mm)
+      const snap=0.8;
+      // 画布中心线
+      const cxl=editorPaperW/2, cxt=editorPaperW/2-el.w;
+      const cyl=editorPaperH/2, cyt=editorPaperH/2-el.h;
+      // 检查与其他元素对齐
+      const guides={h:[],v:[]};
+      editorElements.forEach((o,oi)=>{
+        if(oi===editorSelected)return;
+        // 左、中、右 对齐(纵向线)
+        const myL=tx, myC=tx+el.w/2, myR=tx+el.w;
+        const oL=o.x, oC=o.x+o.w/2, oR=o.x+o.w;
+        // 左-左
+        if(Math.abs(myL-oL)<snap){tx=oL;guides.v.push(oL);}
+        if(Math.abs(myC-oC)<snap){tx=oC-el.w/2;guides.v.push(oC);}
+        if(Math.abs(myR-oR)<snap){tx=oR-el.w;guides.v.push(oR);}
+        // 上、中、下 对齐(横向线)
+        const myT=ty, myM=ty+el.h/2, myB=ty+el.h;
+        const oT=o.y, oM=o.y+o.h/2, oB=o.y+o.h;
+        if(Math.abs(myT-oT)<snap){ty=oT;guides.h.push(oT);}
+        if(Math.abs(myM-oM)<snap){ty=oM-el.h/2;guides.h.push(oM);}
+        if(Math.abs(myB-oB)<snap){ty=oB-el.h;guides.h.push(oB);}
+      });
+      // 画布左右/上下边界吸附
+      if(Math.abs(tx-0)<snap){tx=0;guides.v.push(0);}
+      if(Math.abs(tx+el.w-editorPaperW)<snap){tx=editorPaperW-el.w;guides.v.push(editorPaperW);}
+      if(Math.abs(ty-0)<snap){ty=0;guides.h.push(0);}
+      if(Math.abs(ty+el.h-editorPaperH)<snap){ty=editorPaperH-el.h;guides.h.push(editorPaperH);}
+      // 中心线吸附
+      if(Math.abs(tx-cxl)<snap){tx=cxl;guides.v.push(cxl);}
+      if(Math.abs(ty-cyl)<snap){ty=cyl;guides.h.push(cyl);}
+      el.x=tx; el.y=ty;
+      // 绘制对齐虚线
+      drawGuides(guides);
+    }
+  }
+
+  // Update position without full re-render for smoothness
+  const canvas=document.getElementById('editorCanvas');
+  const labels=canvas.querySelectorAll('.canvas-label');
+  if(groupOrig&&groupOrig.length>1){
+    // 多选：更新所有选中元素位置
+    groupOrig.forEach(g=>{
+      const d2=labels[g.idx];
+      if(d2){
+        const e2=editorElements[g.idx];
+        d2.style.left=(e2.x*EDITOR_SCALE)+'px';
+        d2.style.top=(e2.y*EDITOR_SCALE)+'px';
+      }
+    });
+  }else{
+    const div=labels[editorSelected];
+    if(div){
+      div.style.left=(el.x*EDITOR_SCALE)+'px';
+      div.style.top=(el.y*EDITOR_SCALE)+'px';
+      div.style.width=(el.w*EDITOR_SCALE)+'px';
+      div.style.height=(el.h*EDITOR_SCALE)+'px';
+    }
+  }
+  // Update props panel
+  const props=document.getElementById('erProps');
+  const inputs=props.querySelectorAll('input[type="number"]');
+  if(inputs.length>=4){
+    inputs[0].value=el.x.toFixed(1);
+    inputs[1].value=el.y.toFixed(1);
+    inputs[2].value=el.w.toFixed(1);
+    inputs[3].value=el.h.toFixed(1);
+  }
+});
+
+// 绘制对齐虚线(红色)
+function drawGuides(guides){
+  // 清除旧虚线
+  document.querySelectorAll('.guide-line').forEach(g=>g.remove());
+  if(!guides)return;
+  const canvas=document.getElementById('editorCanvas');
+  guides.h.forEach(y=>{
+    const line=document.createElement('div');
+    line.className='guide-line h';
+    line.style.top=(y*EDITOR_SCALE)+'px';
+    canvas.appendChild(line);
+  });
+  guides.v.forEach(x=>{
+    const line=document.createElement('div');
+    line.className='guide-line v';
+    line.style.left=(x*EDITOR_SCALE)+'px';
+    canvas.appendChild(line);
+  });
+}
+
+document.addEventListener('mouseup',()=>{
+  if(editorDragInfo){
+    editorDragInfo=null;
+    document.querySelectorAll('.guide-line').forEach(g=>g.remove());
+    renderCanvas(); // Full re-render to update handles
+    renderProps();  // 刷新属性面板，显示最新的X/Y/宽/高值
+  }
+});
+
+// Click empty canvas to deselect
+document.getElementById('editorCanvas').addEventListener('click',e=>{
+  if(e.target.id==='editorCanvas'||e.target.classList.contains('canvas-info')){
+    editorSelected=-1;
+    editorMultiSel.clear();
+    renderCanvas();renderProps();renderElementList();
+  }
+});
+
+// Keyboard: Arrow keys to move, Delete to remove, Escape to deselect
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('editorOverlay').classList.contains('show'))return;
+  // Skip if typing in input/textarea
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(editorSelected>=0){e.preventDefault();editorDelete();}
+  }
+  if(e.key==='Escape'){
+    editorSelected=-1;editorMultiSel.clear();
+    renderCanvas();renderProps();renderElementList();
+  }
+
+  // Arrow keys: move selected element(s) (1mm per press, hold Shift for 0.1mm)
+  if(editorSelected>=0){
+    const selIdx=editorMultiSel.size>1?[...editorMultiSel]:[editorSelected];
+    const step=e.shiftKey?0.1:1;
+    let moved=false;
+    selIdx.forEach(idx=>{
+      const el=editorElements[idx];
+      // 允许移出画布边界(最多100mm)
+      if(e.key==='ArrowLeft'){el.x=Math.max(-100,el.x-step);moved=true;}
+      else if(e.key==='ArrowRight'){el.x=el.x+step;moved=true;}
+      else if(e.key==='ArrowUp'){el.y=Math.max(-100,el.y-step);moved=true;}
+      else if(e.key==='ArrowDown'){el.y=el.y+step;moved=true;}
+    });
+    if(moved){
+      e.preventDefault();
+      // Update visual position directly for smoothness
+      const canvas=document.getElementById('editorCanvas');
+      const labels=canvas.querySelectorAll('.canvas-label');
+      selIdx.forEach(idx=>{
+        const el=editorElements[idx];
+        const div=labels[idx];
+        if(div){
+          div.style.left=(el.x*EDITOR_SCALE)+'px';
+          div.style.top=(el.y*EDITOR_SCALE)+'px';
+        }
+      });
+      // Update X/Y inputs in props panel (使用 data-prop 精确定位，避免更新错误的输入框)
+      const props=document.getElementById('erProps');
+      const xInput=props.querySelector('input[data-prop="x"]');
+      const yInput=props.querySelector('input[data-prop="y"]');
+      if(xInput)xInput.value=editorElements[editorSelected].x.toFixed(1);
+      if(yInput)yInput.value=editorElements[editorSelected].y.toFixed(1);
+    }
+  }
+});
+
+// ===== Delivery Import (Excel Pivot Table) =====
+let deliveryData=null; // {stores:['春风店',...], items:{productName:{store:qty,...},...}, total:{productName:qty,...}}
+let curStore='';
+let ocrImageData=null; // base64 of last uploaded image
+let ocrStores=[]; // stores from OCR table
+
+// ===== Image Upload + OCR =====
+function handleImageUpload(e){
+  // 兼容两种调用：input事件对象 / 直接传入File对象(拖拽)
+  const files=(e&&e.target&&e.target.files)?Array.from(e.target.files):null;
+  if(files&&files.length>1){
+    handleMultipleImageUpload(files);
+    if(e&&e.target&&e.target.files)e.target.value='';
+    return;
+  }
+  const file=files&&files.length?files[0]:(e instanceof File?e:null);
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    ocrImageData=ev.target.result;
+    document.getElementById('ocrPreview').src=ocrImageData;
+    document.getElementById('ocrPreview').style.display='block';
+    document.getElementById('ocrOverlay').classList.add('show');
+    runOCR(ocrImageData);
+  };
+  reader.readAsDataURL(file);
+  if(e&&e.target&&e.target.files)e.target.value='';
+}
+
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=ev=>resolve(ev.target.result);
+    reader.onerror=()=>reject(new Error('读取图片失败：'+(file&&file.name?file.name:'')));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function requestOCRText(imgData){
+  const resp=await fetch('ocr.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({image:imgData})
+  });
+  const res=await resp.json();
+  if(res.code!==200)throw new Error(res.msg||'识别失败');
+  return res.text||'';
+}
+
+async function handleMultipleImageUpload(files){
+  const imgs=files.filter(f=>/\.(jpg|jpeg|png|bmp|webp)$/i.test(f.name||''));
+  if(!imgs.length)return;
+  const status=document.getElementById('ocrStatus');
+  const progWrap=document.getElementById('ocrProgressWrap');
+  const progBar=document.getElementById('ocrProgressBar');
+  const rawBox=document.getElementById('ocrRaw');
+  document.getElementById('ocrOverlay').classList.add('show');
+  document.getElementById('ocrPreview').style.display='none';
+  rawBox.style.display='block';
+  rawBox.textContent='';
+  status.className='ocr-status working';
+  progWrap.style.display='block';
+  progBar.style.width='0%';
+
+  const merged=new Map();
+  const rawTexts=[];
+  let ok=0, fail=0;
+  for(let i=0;i<imgs.length;i++){
+    const file=imgs[i];
+    try{
+      status.textContent=`🔍 正在识别第 ${i+1}/${imgs.length} 张：${file.name||'图片'}`;
+      const imgData=await readFileAsDataURL(file);
+      if(i===0){
+        ocrImageData=imgData;
+        document.getElementById('ocrPreview').src=imgData;
+        document.getElementById('ocrPreview').style.display='block';
+      }
+      const text=await requestOCRText(imgData);
+      rawTexts.push(`【第${i+1}张 ${file.name||''}】\n${text}`);
+      parseOcrText(text);
+      extractCurrentOcrRowsAsTotals().forEach(item=>{
+        const key=item.name;
+        merged.set(key,(merged.get(key)||0)+item.qty);
+      });
+      ok++;
+    }catch(err){
+      fail++;
+      rawTexts.push(`【第${i+1}张 ${file.name||''}】识别失败：${err.message}`);
+    }
+    progBar.style.width=Math.round(((i+1)/imgs.length)*100)+'%';
+  }
+
+  rawBox.textContent=rawTexts.join('\n\n');
+  renderMergedOcrTotals(merged);
+  status.className='ocr-status done';
+  status.textContent=`✓ 多图识别完成：成功 ${ok} 张，失败 ${fail} 张；请核对右侧合并结果`;
+}
+
+function extractCurrentOcrRowsAsTotals(){
+  const rows=document.querySelectorAll('#ocrBody tr');
+  const result=[];
+  rows.forEach(tr=>{
+    const inputs=tr.querySelectorAll('input');
+    if(inputs.length<2)return;
+    const name=inputs[0].value.trim();
+    if(!name)return;
+    let qty=0;
+    if(inputs.length===2){
+      qty=parseInt(inputs[1].value)||0;
+    }else{
+      qty=parseInt(inputs[inputs.length-1].value)||0;
+      if(qty<=0){
+        for(let i=1;i<inputs.length;i++)qty+=parseInt(inputs[i].value)||0;
+      }
+    }
+    if(qty>0)result.push({name,qty});
+  });
+  return result;
+}
+
+function renderMergedOcrTotals(merged){
+  initOcrTable(['商品名称','数量']);
+  if(!merged||merged.size===0){
+    for(let i=0;i<3;i++)document.getElementById('ocrBody').appendChild(buildOcrRow('',[0],0));
+    return;
+  }
+  Array.from(merged.entries()).forEach(([name,qty])=>{
+    document.getElementById('ocrBody').appendChild(buildOcrRow(name,[qty],0));
+  });
+}
+
+async function runOCR(imgData){
+  const status=document.getElementById('ocrStatus');
+  const progWrap=document.getElementById('ocrProgressWrap');
+  const progBar=document.getElementById('ocrProgressBar');
+  status.className='ocr-status working';
+  status.textContent='🔍 正在识别中，请稍候...';
+  progWrap.style.display='block';
+  progBar.style.width='20%';
+
+  try{
+    // 调用服务端百度OCR接口（密钥保存在服务端，更安全稳定）
+    const resp=await fetch('ocr.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:imgData})
+    });
+    const res=await resp.json();
+    if(res.code!==200){
+      throw new Error(res.msg||'识别失败');
+    }
+    const text=res.text||'';
+    progBar.style.width='100%';
+    status.className='ocr-status done';
+    status.textContent='✓ 识别完成，请在右侧核对数据';
+
+    // Show raw OCR text
+    document.getElementById('ocrRaw').style.display='block';
+    document.getElementById('ocrRaw').textContent=text;
+
+    // Parse OCR text into table
+    parseOcrText(text);
+  }catch(err){
+    status.className='ocr-status';
+    status.style.background='#ffebee';
+    status.style.color='#c62828';
+    status.textContent='❌ 识别失败：'+err.message;
+    progWrap.style.display='none';
+    // Still show empty editable table
+    initOcrTable(['商品名称']);
+  }
+}
+
+function parseOcrText(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+
+  // 1. 识别门店名（以 店/仓/点 结尾的短词）
+  const storeSet=new Set();
+  const storeOrder=[];
+  lines.forEach(line=>{
+    if(/求和项|转换区|列\d+|总计|^dh$/i.test(line)) return; // 表头行不参与门店识别
+    const tokens=line.split(/[\s,，、|]+/).filter(Boolean);
+    tokens.forEach(t=>{
+      t=t.trim();
+      if(t==='湖南土菜'||/^[\u4e00-\u9fa5A-Za-z0-9]{1,10}(店|仓|点)$/.test(t)){
+        if(!storeSet.has(t)){storeSet.add(t);storeOrder.push(t);}
+      }
+    });
+  });
+  // 第二种图片常见格式：第2列表头是“湖南土菜”，不是门店名，也按数量列处理
+  if(storeOrder.length===0&&lines.some(line=>/(^|[\s,，、|【\[])\s*湖南土菜\s*($|[\s,，、|】\]])/.test(line))){
+    storeOrder.push('湖南土菜');
+  }
+  ocrStores=storeOrder;
+  const storeCount=ocrStores.length;
+
+  // 2. 解析数据行（透视表截图格式）
+  const items=[];
+  let pending=null;      // 当前商品
+  let totalSeen=false;   // 是否已遇到"总计"行（之后的行号全部忽略）
+
+  function isHeaderLine(line){
+    return /求和项|转换区|列\d+|^dh$|^值[:：]|^行[:：]|^列[:：]/.test(line);
+  }
+
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(isHeaderLine(line)) continue; // 表头行跳过
+    if(totalSeen && /^\d+$/.test(line)) continue; // 总计后的行号忽略
+    // 过滤日期行（如 2026/8/5、2026-08-05）
+    if(/^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/.test(line)) continue;
+
+    const allNums=(line.match(/\d+(\.\d+)?/g)||[]).map(Number);
+    const wm=line.match(/(\d+(\.\d+)?)\s*[gG克斤]/);
+    const weightNum=wm?parseFloat(wm[1]):null;
+    const stripped=line.replace(/\d+(\.\d+)?/g,'').replace(/[\s.,，、|:：\/]/g,'');
+    const isPureNums=stripped.length===0 && allNums.length>0;
+
+    // ===== 衡大厨截图格式 =====
+    // 行结构通常为：简名+数量 | 【湖南土菜】完整品名 | 份 | 数量 | 简名
+    // 这里强制取第2列完整品名，并取“份”后面的数字作为份数。
+    const hdMatch=line.match(/([【\[]\s*湖南土菜\s*[】\]][\s\S]*?(?:\d+(?:\.\d+)?\s*(?:g|G|克|斤)?))[\s\S]*?份\s*(\d+)/);
+    if(hdMatch){
+      const hdName=hdMatch[1].replace(/\s+/g,'').replace(/[［]/g,'【').replace(/[］]/g,'】').trim();
+      const hdQty=parseInt(hdMatch[2])||0;
+      if(hdName&&hdQty>0){
+        items.push({name:hdName,quantities:[hdQty]});
+        pending=null;
+        continue;
+      }
+    }
+
+    // ===== 遇到"总计"行 =====
+    if(/^总计/.test(line)){
+      // 已遇到商品 → 这是底部汇总行，标记结束（其后的数字/行号全部忽略）
+      if(items.length>0) totalSeen=true;
+      continue;
+    }
+
+    // ===== 纯数字行 =====
+    if(isPureNums){
+      if(pending){
+        // 数量上限：每个商品最多 storeCount+1 个数字（各店+总计）
+        const maxQty=storeCount>0?storeCount+1:999;
+        // 已满：多余数字是行号，忽略
+        if(pending.quantities.length>=maxQty) continue;
+        allNums.forEach(n=>{
+          if(pending.quantities.length<maxQty) pending.quantities.push(n);
+        });
+      }
+      continue;
+    }
+
+    // ===== 商品名行 =====
+    let name=line;
+    storeOrder.forEach(s=>{name=name.split(s).join(' ');});
+    name=name.replace(/\d+(\.\d+)?\s*[gG克斤]/g,' ');   // 去重量
+    name=name.replace(/\d+(\.\d+)?/g,' ');              // 去数字
+    name=name.replace(/[【】\[\]（）()、，,：:．.·\-—_]/g,' '); // 去符号
+    name=name.replace(/\s+/g,' ').trim();
+
+    if(!name||name.length<2) continue;
+    if(/^(净含量|包装日期|生产日期|产地|销售方|储存|存储|保质期|数量|商品名称|货号|规格|单位|单价|金额|合计|小计|备注|店名|日期|条码|编号|值|行|列)/.test(name)) continue;
+
+    // 数量：排除重量数字
+    let qty=[];
+    allNums.forEach(n=>{
+      if(weightNum!==null && Math.abs(n-weightNum)<0.001) return; // 跳过重量
+      qty.push(n);
+    });
+
+    pending={name:name, quantities:qty};
+    items.push(pending);
+  }
+
+  // 3. 渲染
+  if(ocrStores.length>0&&items.length>0){
+    // 有门店：商品名 + 各门店 + 总计
+    initOcrTable(['商品名称',...ocrStores,'总计']);
+    items.forEach(item=>{
+      // 智能对齐：利用"总计=各店之和"自动剔除行号、把总计放对列
+      const aligned=smartAlign(item.quantities, ocrStores.length);
+      const row=buildOcrRow(item.name, aligned, ocrStores.length);
+      document.getElementById('ocrBody').appendChild(row);
+    });
+  }else if(items.length>0){
+    // 无门店：商品名 + 数量（合计）
+    initOcrTable(['商品名称','数量']);
+    items.forEach(item=>{
+      const total=item.quantities.length?item.quantities.reduce((a,b)=>a+b,0):0;
+      const row=buildOcrRow(item.name,[total],0);
+      document.getElementById('ocrBody').appendChild(row);
+    });
+  }else{
+    // 空结果：给3行可编辑
+    initOcrTable(['商品名称','数量']);
+    for(let i=0;i<3;i++){
+      const row=buildOcrRow('',[0],0);
+      document.getElementById('ocrBody').appendChild(row);
+    }
+  }
+}
+
+// 智能对齐：输入识别出的数量数组，输出 [门店1..门店N, 总计]
+// 透视表每行结构 = 各门店数量 + 总计，且 总计==各门店之和
+// 利用该数学特征从后往前定位真正的总计，剔除混入的Excel行号
+function smartAlign(quantities, storeCount){
+  // 修复：原逻辑从 p>=1 开始找"值==前缀和"作为总计，
+  // 当 OCR 漏掉/识别错总计、或行号恰好等于前缀和时，
+  // 会把门店数量误判成0（数量全为0的问题根源）。
+  // 现在：总计位置必须 >= storeCount（所有门店数字之后），
+  // 且长度恰好匹配时直接按位置取，不再依赖"和等于"猜测。
+  const q=(quantities||[]).map(Number).filter(n=>!isNaN(n));
+  const out=[];
+  let total=null;
+
+  // 只有一个数量列（例如第2列“湖南土菜”）时，取识别到的第一个有效数量作为份数
+  if(storeCount===1){
+    const first=q.length?q[0]:0;
+    out[0]=first;
+    out.push(q.length>1?q[q.length-1]:first);
+    return out;
+  }
+
+  // 从后往前找"该值 == 之前所有数字之和"，且位置必须在所有门店数字之后(p>=storeCount)
+  // 用于剔除混入的行号（行号一般出现在数据行末尾或中间）
+  let foundIdx=-1;
+  for(let p=q.length-1;p>=storeCount;p--){
+    const sumPrev=q.slice(0,p).reduce((a,b)=>a+b,0);
+    if(q[p]===sumPrev && sumPrev>0){ foundIdx=p; break; }
+  }
+  if(foundIdx>=0){
+    total=q[foundIdx];
+    for(let i=0;i<storeCount;i++) out[i]=i<foundIdx?q[i]:0;
+  }else if(q.length===storeCount+1){
+    // 数量恰好 = 门店数+1：最后一位视为总计，前面按顺序填门店（最常见情况，绝不误判）
+    for(let i=0;i<storeCount;i++) out[i]=q[i];
+    total=q[storeCount];
+  }else if(q.length===storeCount){
+    // 没有总计：各门店数量 + 合计
+    for(let i=0;i<storeCount;i++) out[i]=q[i];
+    total=q.reduce((a,b)=>a+b,0);
+  }else if(q.length>storeCount+1){
+    // 行号混入且无法识别总计：取前 storeCount 个为门店，最后一个为总计
+    for(let i=0;i<storeCount;i++) out[i]=q[i];
+    total=q[q.length-1];
+  }else{
+    // 数量不足：能填几个填几个，总计 = 已识别数量之和
+    for(let i=0;i<storeCount;i++) out[i]=i<q.length?q[i]:0;
+    total=q.reduce((a,b)=>a+b,0);
+  }
+  out.push(total);
+  return out;
+}
+
+function initOcrTable(headers){
+  ocrStores=headers.slice(1,-1); // exclude first (name) and last (total/qty)
+  const hr=document.getElementById('ocrHeaderRow');
+  hr.innerHTML=headers.map(h=>`<th>${h}</th>`).join('')+'<th></th>';
+  document.getElementById('ocrBody').innerHTML='';
+}
+
+function buildOcrRow(name,quantities,storeCount){
+  const tr=document.createElement('tr');
+  // Name cell
+  const tdName=document.createElement('td');
+  const inpName=document.createElement('input');
+  inpName.type='text';
+  inpName.value=name;
+  inpName.style.textAlign='left';
+  inpName.placeholder='商品名称';
+  tdName.appendChild(inpName);
+  tr.appendChild(tdName);
+
+  // Quantity cells
+  for(let i=0;i<=storeCount;i++){
+    const td=document.createElement('td');
+    const inp=document.createElement('input');
+    inp.type='number';
+    inp.value=quantities[i]||0;
+    inp.min=0;
+    inp.style.width='50px';
+    td.appendChild(inp);
+    tr.appendChild(td);
+  }
+
+  // Delete button
+  const tdDel=document.createElement('td');
+  tdDel.innerHTML='<span class="del-btn" onclick="this.parentElement.parentElement.remove()">✕</span>';
+  tr.appendChild(tdDel);
+  return tr;
+}
+
+function addOcrRow(){
+  const storeCount=ocrStores.length;
+  const headers=storeCount>0?['商品名称',...ocrStores,'总计']:['商品名称','数量'];
+  const row=buildOcrRow('',[],storeCount);
+  document.getElementById('ocrBody').appendChild(row);
+}
+
+function reRunOCR(){
+  if(ocrImageData){
+    document.getElementById('ocrRaw').style.display='none';
+    runOCR(ocrImageData);
+  }
+}
+
+function confirmOcrData(){
+  // Read table data
+  const rows=document.querySelectorAll('#ocrBody tr');
+  const items={};
+  const stores=ocrStores.length>0?[...ocrStores]:[];
+  let hasTotalCol=false;
+
+  // Check if last column header is "总计"
+  const headers=Array.from(document.querySelectorAll('#ocrHeaderRow th')).map(th=>th.textContent.trim());
+  hasTotalCol=headers[headers.length-2]==='总计'||headers[headers.length-2]==='数量';
+
+  rows.forEach(tr=>{
+    const inputs=tr.querySelectorAll('input');
+    if(inputs.length<2)return;
+    const name=inputs[0].value.trim();
+    if(!name)return;
+
+    const itemData={};
+    let total=0;
+    if(stores.length>0){
+      stores.forEach((s,i)=>{
+        const v=parseInt(inputs[i+1].value)||0;
+        itemData[s]=v;
+        total+=v;
+      });
+      // Last input is total (if hasTotalCol) or we calculate
+      if(hasTotalCol&&inputs.length===stores.length+2){
+        total=parseInt(inputs[inputs.length-1].value)||total;
+      }
+      itemData['总计']=total;
+    }else{
+      total=parseInt(inputs[1].value)||0;
+      itemData['总计']=total;
+    }
+
+    if(total>0){
+      items[name]=itemData;
+    }
+  });
+
+  if(Object.keys(items).length===0){
+    alert('没有有效数据，请检查表格内容');
+    return;
+  }
+
+  // Build deliveryData
+  if(stores.length>0){
+    deliveryData={stores,items};
+  }else{
+    // No stores, only totals
+    deliveryData={stores:[],items};
+  }
+
+  // Build store dropdown
+  const sel=document.getElementById('storeSelect');
+  if(stores.length>0){
+    sel.innerHTML='<option value="">选择门店...</option>';
+    stores.forEach(s=>sel.innerHTML+=`<option value="${s}">${s}</option>`);
+    sel.innerHTML+='<option value="总计">📊 总计（全部）</option>';
+    sel.style.display='block';
+  }else{
+    sel.innerHTML='<option value="">选择...</option>';
+    sel.innerHTML+='<option value="总计">📊 确认打印</option>';
+    sel.style.display='block';
+  }
+
+  closeM('ocrOverlay');
+  // 第二种图片只有“湖南土菜”一个数量列时，确认后直接套用第2列份数
+  if(stores.length===1&&stores[0]==='湖南土菜'){
+    sel.value='湖南土菜';
+    onStoreSelect();
+    showImportToast('✅ 已按第2列「湖南土菜」识别数量');
+  }else if(stores.length===0){
+    sel.value='总计';
+    onStoreSelect();
+    showImportToast('✅ 已合并图片识别结果，可直接打印');
+  }else{
+    alert(`数据已确认！\n商品数：${Object.keys(items).length}\n门店：${stores.length>0?stores.join('、'):'未识别（仅总数）'}\n\n请从下拉菜单选择门店后打印`);
+  }
+}
+
+function handleExcelUpload(e){
+  // 兼容两种调用：input事件对象 / 直接传入File对象(拖拽)
+  const file=(e&&e.target&&e.target.files)?e.target.files[0]:(e instanceof File?e:null);
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      parsePivotTable(rows);
+    }catch(err){
+      alert('解析Excel失败：'+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  if(e&&e.target&&e.target.files)e.target.value=''; // reset for re-upload
+}
+
+function parsePivotTable(rows){
+  // Find header row (row containing store names or "总计")
+  // Find "总计" row and column
+  let headerRowIdx=-1, totalRowIdx=-1, totalColIdx=-1;
+  let stores=[];
+
+  for(let i=0;i<rows.length;i++){
+    const row=rows[i];
+    for(let j=0;j<row.length;j++){
+      const val=String(row[j]||'').trim();
+      if(val==='总计'){
+        if(totalRowIdx<0)totalRowIdx=i; // first "总计" could be row or col
+        totalColIdx=j;
+      }
+    }
+  }
+
+  // Determine: if "总计" appears in a row, that row is the total row
+  // The column where "总计" first appears in header area is the total column
+  // Re-scan: find the row that has "总计" as first or second cell value (row total)
+  totalRowIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    const v0=String(rows[i][0]||'').trim();
+    const v1=String(rows[i][1]||'').trim();
+    if(v0==='总计'||v1==='总计'){totalRowIdx=i;break;}
+  }
+
+  // Find total column (column with "总计" header)
+  totalColIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    for(let j=0;j<rows[i].length;j++){
+      if(String(rows[i][j]||'').trim()==='总计'){
+        if(totalColIdx<0)totalColIdx=j;
+      }
+    }
+  }
+
+  // If no "总计" found, try to infer
+  if(totalColIdx<0){
+    // Find the last non-empty column in the first few rows
+    for(let i=0;i<Math.min(5,rows.length);i++){
+      for(let j=rows[i].length-1;j>=0;j--){
+        if(String(rows[i][j]||'').trim()){totalColIdx=j;break;}
+      }
+      if(totalColIdx>=0)break;
+    }
+  }
+
+  // Find header row: the row containing store names
+  // It's usually the row just before data rows, and after "求和项:数量" etc.
+  headerRowIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    const row=rows[i];
+    // Header row contains store-like names (ending with "店") or the second-mode column "湖南土菜"
+    let storeCount=0;
+    for(let j=0;j<(totalColIdx>=0?totalColIdx:row.length);j++){
+      const v=String(row[j]||'').trim();
+      if(v==='湖南土菜'||v.endsWith('店')||v.endsWith('仓')||v.endsWith('点'))storeCount++;
+    }
+    if(storeCount>=1){headerRowIdx=i;break;}
+  }
+
+  // Fallback: if not found, use the row before first data row
+  if(headerRowIdx<0){
+    // Find first row with numeric data
+    for(let i=0;i<rows.length;i++){
+      const row=rows[i];
+      let hasNum=false;
+      for(let j=0;j<row.length;j++){
+        if(typeof row[j]==='number'||(/^\d+$/.test(String(row[j]||'').trim())))hasNum=true;
+      }
+      if(hasNum){headerRowIdx=i-1;break;}
+    }
+  }
+
+  if(headerRowIdx<0){
+    alert('无法识别表格结构，请确保是Excel数据透视表格式');
+    return;
+  }
+
+  // Extract store names from header row
+  const headerRow=rows[headerRowIdx];
+  stores=[];
+  const storeColMap={}; // storeName -> colIdx
+  for(let j=0;j<(totalColIdx>=0?totalColIdx:headerRow.length);j++){
+    const v=String(headerRow[j]||'').trim();
+    if(v&&!['求和项:数量','转换区','列1',''].includes(v)&&v!=='总计'){
+      stores.push(v);
+      storeColMap[v]=j;
+    }
+  }
+
+  if(!stores.length){
+    alert('未找到门店信息，请检查表格格式');
+    return;
+  }
+
+  // Extract product data
+  const items={};
+  const dataStart=headerRowIdx+1;
+  const dataEnd=totalRowIdx>=0?totalRowIdx:rows.length;
+
+  for(let i=dataStart;i<dataEnd;i++){
+    const row=rows[i];
+    const productName=String(row[0]||'').trim()||String(row[1]||'').trim()||String(row[2]||'').trim();
+    if(!productName||productName==='总计')continue;
+
+    const itemData={};
+    let hasData=false;
+    stores.forEach(store=>{
+      const colIdx=storeColMap[store];
+      const val=row[colIdx];
+      let num=0;
+      if(typeof val==='number')num=val;
+      else num=parseInt(String(val||'').trim())||0;
+      itemData[store]=num;
+      if(num>0)hasData=true;
+    });
+
+    // Total
+    let total=0;
+    if(totalColIdx>=0){
+      const tv=row[totalColIdx];
+      total=typeof tv==='number'?tv:(parseInt(String(tv||'').trim())||0);
+    }else{
+      total=stores.reduce((s,st)=>s+(itemData[st]||0),0);
+    }
+    itemData['总计']=total;
+
+    if(hasData||total>0){
+      items[productName]=itemData;
+    }
+  }
+
+  if(!Object.keys(items).length){
+    alert('未找到商品数据');
+    return;
+  }
+
+  deliveryData={stores,items};
+  // Build store dropdown
+  const sel=document.getElementById('storeSelect');
+  sel.innerHTML='<option value="">选择门店...</option>';
+  stores.forEach(s=>sel.innerHTML+=`<option value="${s}">${s}</option>`);
+  sel.innerHTML+='<option value="总计">📊 总计（全部门店）</option>';
+  sel.style.display='block';
+
+  alert(`导入成功！\n门店：${stores.join('、')}\n商品数：${Object.keys(items).length}\n\n请在下拉菜单选择门店或"总计"`);
+}
+
+function normalizeName(s){
+  return String(s||'').replace(/[\s\[\]【】（）()·]/g,'').replace(/湖南土菜/g,'').toLowerCase();
+}
+function looseName(s){
+  return normalizeName(s)
+    .replace(/湖南/g,'')
+    .replace(/土菜\d*号/g,'')
+    .replace(/土菜/g,'')
+    .replace(/农家|高山|土/g,'')
+    .replace(/（新）|新/g,'')
+    .toLowerCase();
+}
+
+function matchProduct(excelName){
+  // Try exact match first
+  for(let i=0;i<DATA.length;i++){
+    const pName=DATA[i].productName;
+    if(pName===excelName||DATA[i].filename===excelName)return i;
+  }
+  // Try normalized match
+  const normExcel=normalizeName(excelName);
+  for(let i=0;i<DATA.length;i++){
+    if(normalizeName(DATA[i].productName)===normExcel)return i;
+    if(normalizeName(DATA[i].filename)===normExcel)return i;
+  }
+  // Try partial match (excel name contains key part of product name or vice versa)
+  for(let i=0;i<DATA.length;i++){
+    const np=normalizeName(DATA[i].productName);
+    if(np.includes(normExcel)||normExcel.includes(np))return i;
+  }
+  // Hengda format loose match: remove brand/adjective prefixes but keep core name + weight
+  const looseExcel=looseName(excelName);
+  for(let i=0;i<DATA.length;i++){
+    const lp=looseName(DATA[i].productName);
+    const lf=looseName(DATA[i].filename);
+    if((lp&&looseExcel&&(lp.includes(looseExcel)||looseExcel.includes(lp)))||
+       (lf&&looseExcel&&(lf.includes(looseExcel)||looseExcel.includes(lf))))return i;
+  }
+  // Try matching by weight + keyword
+  const weightMatch=excelName.match(/(\d+g)/);
+  const weight=weightMatch?weightMatch[1]:'';
+  if(weight){
+    // Extract product keyword (remove brand prefix, weight)
+    let keyword=excelName.replace(/【湖南土菜】/g,'').replace(/湖南土菜\d*号/g,'').replace(/湖南/g,'').replace(/\d+g/g,'').replace(/农家|土/g,'').trim();
+    for(let i=0;i<DATA.length;i++){
+      const np=normalizeName(DATA[i].productName);
+      if(np.includes(weight.replace('g',''))&&keyword&&np.includes(normalizeName(keyword)))return i;
+    }
+  }
+  return -1;
+}
+
+function onStoreSelect(){
+  if(!deliveryData)return;
+  const store=document.getElementById('storeSelect').value;
+  if(!store)return;
+  curStore=store;
+
+  // Clear current selection
+  selected.clear();
+
+  let matched=0, unmatched=0;
+  const unmatchedItems=[];
+
+  Object.entries(deliveryData.items).forEach(([excelName,qtys])=>{
+    const qty=qtys[store]||0;
+    if(qty<=0)return; // skip zero qty
+
+    const idx=matchProduct(excelName);
+    if(idx>=0){
+      selected.set(idx,qty);
+      matched++;
+    }else{
+      unmatched++;
+      unmatchedItems.push(`${excelName} ×${qty}`);
+    }
+  });
+
+  renderGrid();
+  updateBar();
+
+  // Show delivery info bar
+  const info=document.getElementById('deliveryInfo');
+  info.style.display='flex';
+  document.getElementById('diStore').textContent=store;
+  document.getElementById('diCount').textContent=matched+(unmatched>0?`（${unmatched}项未匹配）`:'');
+
+  if(unmatched>0){
+    alert(`已匹配 ${matched} 个标签\n未匹配 ${unmatched} 项：\n${unmatchedItems.slice(0,10).join('\n')}${unmatchedItems.length>10?'\n...':''}`);
+  }
+}
+
+function clearDelivery(){
+  deliveryData=null;
+  curStore='';
+  selected.clear();
+  document.getElementById('storeSelect').style.display='none';
+  document.getElementById('storeSelect').value='';
+  document.getElementById('deliveryInfo').style.display='none';
+  renderGrid();
+  updateBar();
+}
+
+// ===== 拖拽导入 =====
+let dragDepth=0;
+function showImportToast(msg,isErr){
+  const t=document.getElementById('importToast');
+  t.textContent=msg;
+  t.className='toast-import show'+(isErr?' err':'');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function processDroppedFile(file){
+  if(!file)return;
+  const name=(file.name||'').toLowerCase();
+  const imgExt=['.jpg','.jpeg','.png','.bmp','.webp','.gif'];
+  const xlsExt=['.xlsx','.xls','.csv'];
+  if(xlsExt.some(x=>name.endsWith(x))){
+    showImportToast('✅ 配送单已导入');
+    handleExcelUpload(file);
+  }else if(imgExt.some(x=>name.endsWith(x))){
+    showImportToast('🖼️ 图片已导入，开始识别');
+    handleImageUpload(file);
+  }else{
+    showImportToast('❌ 不支持的文件类型：'+file.name,true);
+  }
+}
+// 拖拽进入/离开/经过 显示遮罩
+document.addEventListener('dragenter',function(e){
+  e.preventDefault();
+  dragDepth++;
+  document.getElementById('dropOverlay').classList.add('show');
+});
+document.addEventListener('dragover',function(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='copy';
+});
+document.addEventListener('dragleave',function(e){
+  e.preventDefault();
+  dragDepth=Math.max(0,dragDepth-1);
+  if(dragDepth===0)document.getElementById('dropOverlay').classList.remove('show');
+});
+document.addEventListener('drop',function(e){
+  e.preventDefault();
+  dragDepth=0;
+  document.getElementById('dropOverlay').classList.remove('show');
+  const files=e.dataTransfer&&e.dataTransfer.files;
+  if(files&&files.length){
+    const arr=Array.from(files);
+    const imgs=arr.filter(f=>/\.(jpg|jpeg|png|bmp|webp)$/i.test((f.name||'').toLowerCase()));
+    const others=arr.filter(f=>!imgs.includes(f));
+    if(imgs.length>1){
+      showImportToast('🖼️ 多张图片已导入，开始合并识别');
+      handleMultipleImageUpload(imgs);
+    }else if(imgs.length===1){
+      processDroppedFile(imgs[0]);
+    }
+    others.forEach(f=>processDroppedFile(f));
+  }
+});
+
+// ===== 登录/登出 =====
+function showLoginError(msg,ok){
+  const el=document.getElementById('loginError');
+  el.textContent=msg||'';
+  el.className='login-error'+(ok?' ok':'');
+}
+function showLogin(){
+  document.getElementById('loginPage').classList.add('show');
+  document.getElementById('logoutBtn').style.display='none';
+}
+function hideLogin(){
+  document.getElementById('loginPage').classList.remove('show');
+  document.getElementById('logoutBtn').style.display='none';
+}
+function doLogin(){
+  const account=document.getElementById('loginAccount').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  if(!account||!password){showLoginError('请输入账号和密码');return;}
+  showLoginError('登录中，请稍候...');
+  fetch('login.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({account:account,password:password})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(res.code===200){
+      localStorage.setItem('labelLoginUser',JSON.stringify(res.data));
+      showLoginError('登录成功！',true);
+      setTimeout(function(){
+        initLoginState();
+      },400);
+    }else{
+      showLoginError(res.msg||'登录失败');
+      document.getElementById('loginPassword').value='';
+    }
+  }).catch(function(){showLoginError('网络错误，请重试');});
+}
+function doLogout(){
+  localStorage.removeItem('labelLoginUser');
+  document.getElementById('loginPassword').value='';
+  showLogin();
+}
+function initLoginState(){
+  // 临时跳过登录：打开页面直接进入标签系统
+  document.getElementById('currentUser').textContent='';
+  hideLogin();
+}
+// 页面加载时检查登录状态
+initLoginState();
+
+</script>
+</body>
+</html>
